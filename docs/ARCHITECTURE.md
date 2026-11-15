@@ -1,53 +1,54 @@
 # Architecture / file map
 
-Single module `:app`, package `com.truckdash`. Data flow:
+Modules: `:app` (Android), `:sandbox` (desktop JVM simulator). **`shared/src/main/kotlin/com/truckdash/`** is a plain
+source dir compiled into both (via `srcDir`), so the UI/engine tested in the sandbox is byte-for-byte what ships.
 
 ```
-GPS (LocationManager) ─┐
-IMU (SensorManager) ───┼─> service/DriveService ─┬─> service/TelemetryHub (StateFlow<LiveState>) ─> ui/live/LiveScreen
-                       │                         └─> Room (trips, points, events) ─> ui/trips, ui/health (odometer)
-user input ────────────────────────────────────────> Room (fuel_logs, maintenance_items) / SettingsStore
+ Android:  GPS+IMU -> service/DriveService ─┐                                  ┌-> ui/* (shared Compose screens)
+ Sandbox:  sandbox/SimController ───────────┴-> engine/DriveEngine ─> LiveState┤
+                                                   │ TripSink                 └-> repo/DashRepository
+                                       Room (RoomTripSink) | MemoryStore            (RoomDashRepository | SandboxRepo)
 ```
 
-## core/  (pure Kotlin, unit-tested — `app/src/test/java/com/truckdash/core/CoreTests.kt`)
+## shared/.../core  (pure Kotlin; tests in `app/src/test/.../core/CoreTests.kt`)
 | File | Purpose |
 |---|---|
 | `Geo.kt` | unit factors (m/s→mph, m→mi/ft), haversine, compass label |
-| `GForce.kt` | `Vec3`, `toVehicle(gravity, linear, yaw)` → long/lat/vert g in vehicle frame |
+| `GForce.kt` | `Vec3`, `toVehicle(gravity, linear, yaw)` → `VehicleG` (long/lat/vert g in vehicle frame) |
 | `HarshEventDetector.kt` | hard accel/brake/corner detection with per-type cooldown |
 | `TripSegmenter.kt` | speed stream → START/END trip events (hold + idle timers) |
 | `ElevationGrade.kt` | `ElevationAccumulator` (hysteresis climb), `GradeEstimator` (% grade) |
-| `MaintenanceCalc.kt` | maintenance item → status (miles/days left, OK/SOON/OVERDUE) |
-| `MpgCalc.kt` | fill-to-fill MPG, avg MPG, cost/mile |
-| `Analytics.kt` | miles per month / since, avg moving speed |
+| `MaintenanceCalc.kt` / `MpgCalc.kt` / `Analytics.kt` | maintenance status, fill-to-fill MPG, miles per month etc. |
 
-## data/
+## shared/.../model + repo + engine  (tests: `app/src/test/.../engine/EngineTests.kt`)
 | File | Purpose |
 |---|---|
-| `Entities.kt` | Room entities: Trip, Point, Event, FuelLog, MaintenanceItem |
-| `Daos.kt` | `TripDao`, `FuelDao`, `MaintDao` |
-| `AppDatabase.kt` | Room DB (v1, schema exported to `app/schemas`) |
-| `SettingsStore.kt` | SharedPreferences-backed `Settings` StateFlow (odometer base, passenger mode, mount yaw) |
-| `AppGraph.kt` | service locator (`db`, `settings`) + first-run seeding of default maintenance items |
+| `model/Models.kt` | plain data: Trip, TrackPoint, DriveEvent, TripDetail, FuelLog, MaintItem, Settings, LiveState |
+| `repo/DashRepository.kt` | interface the UI uses (live state, settings, trips, odometer, maintenance, fuel + mutations) |
+| `engine/TripSink.kt` | output interface of the recorder (tripStarted/pointsAdded/eventAdded/tripUpdated) |
+| `engine/TripRecorder.kt` | trip state machine; holds stationary points back so trailing idle is dropped |
+| `engine/DriveEngine.kt` | fixes + g samples in → `StateFlow<LiveState>` + trips out; g smoothing (120 ms τ); GPS-loss tick |
 
-## service/
+## shared/.../ui
 | File | Purpose |
 |---|---|
-| `DriveService.kt` | foreground location service: GPS 1 Hz, IMU @GAME rate, trip lifecycle, harsh events, DB writes |
-| `TelemetryHub.kt` | `LiveState` + singleton StateFlow bridge to UI |
-| `BootReceiver.kt` | best-effort autostart on boot |
+| `TruckDashRoot.kt` | tab shell, speed lock ("PARKED ONLY"), `DesignScale` (layout as 440 dp wide at any density), `LocalBackHook` |
+| `Theme.kt`, `Format.kt` | `Dash` palette, `DashCard`, `StatTile`; duration formatting |
+| `live/LiveScreen.kt`, `live/Gauges.kt` | portrait live layout; `SpeedGauge`, `CompassRose`, `GBall` (Canvas) |
+| `trips/TripsScreen.kt`, `trips/TripsPresenter.kt` | list + monthly chart + detail (route, speed/elevation, events) |
+| `health/HealthScreen.kt`, `health/HealthPresenter.kt` | odometer, maintenance, fuel/MPG, passenger-mode switch, dialogs |
+| `charts/Charts.kt` | `LineChart`, `BarChart`, `RouteMap` |
 
-## ui/
+## app/ (Android only)
 | File | Purpose |
 |---|---|
-| `TruckDashRoot.kt` | tab shell (LIVE/TRIPS/HEALTH) + speed lock ("PARKED ONLY") |
-| `Theme.kt` | `Dash` palette, `TruckDashTheme`, `DashCard`, `StatTile` |
-| `live/LiveScreen.kt` | portrait live layout: gauge, compass, g-ball, stat tiles |
-| `live/Gauges.kt` | `SpeedGauge`, `CompassRose`, `GBall`, `GReadout` (Canvas) |
-| `trips/TripsViewModel.kt` | trips list, summaries, selected trip detail |
-| `trips/TripsScreen.kt` | list + monthly bar chart + detail (route map, speed/elevation charts, events) |
-| `health/HealthViewModel.kt` | odometer, maintenance, fuel, settings actions |
-| `health/HealthScreen.kt` | odometer, maintenance cards, fuel log/MPG, passenger-mode switch, dialogs |
-| `charts/Charts.kt` | `LineChart`, `BarChart`, `RouteMap` (Canvas) |
+| `MainActivity.kt`, `TruckDashApplication.kt` | permissions, keep-awake, immersive, back hook; `AppGraph.init` |
+| `service/DriveService.kt` | thin feeder: Location + Sensor callbacks → `DriveEngine`; notification; 1 s `tick` |
+| `service/BootReceiver.kt` | best-effort autostart |
+| `data/Entities.kt`, `Daos.kt`, `AppDatabase.kt` | Room (v1, schema in `app/schemas`) |
+| `data/Mappers.kt` | entity ↔ model |
+| `data/RoomTripSink.kt`, `RoomDashRepository.kt` | engine output → Room; repository over Room + `SettingsStore` |
+| `data/SettingsStore.kt`, `AppGraph.kt` | prefs-backed settings; service locator + first-run maintenance seeding |
 
-Root: `MainActivity.kt` (permissions, keep-screen-on, immersive), `TruckDashApplication.kt` (AppGraph.init).
+## sandbox/ (desktop) — see `docs/SANDBOX.md`
+`VehicleSim.kt` (physics + scenarios), `SimController.kt`, `MemoryStore.kt`, `Session.kt`, `SandboxApp.kt`, `Main.kt`, `Screenshots.kt`.

@@ -1,8 +1,8 @@
 package com.truckdash.core
 
-import com.truckdash.data.FuelLogEntity
-import com.truckdash.data.MaintenanceItemEntity
-import com.truckdash.data.TripEntity
+import com.truckdash.model.FuelLog
+import com.truckdash.model.MaintItem
+import com.truckdash.model.Trip
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -117,7 +117,7 @@ class ElevationTest {
 
 class MpgCalcTest {
     private fun f(odo: Double, gal: Double, full: Boolean = true) =
-        FuelLogEntity(dateMs = odo.toLong(), odometerMi = odo, gallons = gal, pricePerGal = 3.0, fullTank = full)
+        FuelLog(dateMs = odo.toLong(), odometerMi = odo, gallons = gal, pricePerGal = 3.0, fullTank = full)
 
     @Test fun fillToFill() {
         val s = MpgCalc.compute(listOf(f(1000.0, 15.0), f(1300.0, 15.0), f(1600.0, 20.0)))
@@ -143,7 +143,7 @@ class MaintenanceCalcTest {
     private val day = 86_400_000L
 
     @Test fun okSoonOverdue() {
-        val item = MaintenanceItemEntity(name = "Oil", intervalMiles = 1000, lastOdoMi = 0.0, lastDateMs = 0)
+        val item = MaintItem(name = "Oil", intervalMiles = 1000, lastOdoMi = 0.0, lastDateMs = 0)
         assertEquals(MaintLevel.OK, MaintenanceCalc.status(item, 500.0, 0).level)
         assertEquals(MaintLevel.SOON, MaintenanceCalc.status(item, 900.0, 0).level)
         val over = MaintenanceCalc.status(item, 1100.0, 0)
@@ -152,7 +152,7 @@ class MaintenanceCalcTest {
     }
 
     @Test fun worstOfMilesAndDays() {
-        val item = MaintenanceItemEntity(name = "X", intervalMiles = 10_000, intervalDays = 100, lastOdoMi = 0.0, lastDateMs = 0)
+        val item = MaintItem(name = "X", intervalMiles = 10_000, intervalDays = 100, lastOdoMi = 0.0, lastDateMs = 0)
         val st = MaintenanceCalc.status(item, 100.0, 120 * day)
         assertEquals(MaintLevel.OVERDUE, st.level)
         assertEquals(-20L, st.daysLeft)
@@ -164,9 +164,9 @@ class AnalyticsTest {
         val z = ZoneOffset.UTC
         fun ms(y: Int, m: Int, d: Int) = java.time.LocalDate.of(y, m, d).atStartOfDay(z).toInstant().toEpochMilli()
         val trips = listOf(
-            TripEntity(startMs = ms(2026, 11, 2), distanceM = 1609.344 * 10),
-            TripEntity(startMs = ms(2026, 11, 9), distanceM = 1609.344 * 5),
-            TripEntity(startMs = ms(2026, 9, 20), distanceM = 1609.344 * 7),
+            Trip(startMs = ms(2026, 11, 2), distanceM = 1609.344 * 10),
+            Trip(startMs = ms(2026, 11, 9), distanceM = 1609.344 * 5),
+            Trip(startMs = ms(2026, 9, 20), distanceM = 1609.344 * 7),
         )
         val r = Analytics.milesByMonth(trips, ms(2026, 11, 15), months = 3, zone = z)
         assertEquals(listOf(YearMonth.of(2026, 9), YearMonth.of(2026, 10), YearMonth.of(2026, 11)), r.map { it.first })

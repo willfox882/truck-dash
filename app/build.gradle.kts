@@ -29,6 +29,8 @@ android {
     buildFeatures { compose = true }
     testOptions { unitTests.isReturnDefaultValues = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    // UI, engine, models and core logic are shared with the desktop sandbox.
+    sourceSets["main"].java.srcDir("../shared/src/main/kotlin")
 }
 
 kotlin {
@@ -40,8 +42,6 @@ ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)

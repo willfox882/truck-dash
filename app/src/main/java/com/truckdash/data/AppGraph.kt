@@ -1,6 +1,8 @@
 package com.truckdash.data
 
 import android.content.Context
+import com.truckdash.engine.DriveEngine
+import com.truckdash.repo.DashRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,12 +14,18 @@ object AppGraph {
         private set
     lateinit var settings: SettingsStore
         private set
+    lateinit var engine: DriveEngine
+        private set
+    lateinit var repo: DashRepository
+        private set
 
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun init(ctx: Context) {
         db = AppDatabase.build(ctx)
         settings = SettingsStore(ctx)
+        engine = DriveEngine(RoomTripSink(db))
+        repo = RoomDashRepository(db, settings, engine)
         seedDefaultsOnce()
     }
 

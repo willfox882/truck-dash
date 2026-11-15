@@ -5,12 +5,16 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.truckdash.data.AppGraph
 import com.truckdash.service.DriveService
+import com.truckdash.ui.LocalBackHook
 import com.truckdash.ui.TruckDashRoot
 import com.truckdash.ui.TruckDashTheme
 
@@ -28,7 +32,13 @@ class MainActivity : ComponentActivity() {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
         }
-        setContent { TruckDashTheme { TruckDashRoot() } }
+        setContent {
+            TruckDashTheme {
+                CompositionLocalProvider(LocalBackHook provides { enabled, onBack -> BackHandler(enabled, onBack) }) {
+                    TruckDashRoot(AppGraph.repo)
+                }
+            }
+        }
 
         val needed = buildList {
             add(Manifest.permission.ACCESS_FINE_LOCATION)

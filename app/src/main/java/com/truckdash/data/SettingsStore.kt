@@ -1,19 +1,10 @@
 package com.truckdash.data
 
 import android.content.Context
+import com.truckdash.model.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
-data class Settings(
-    /** Odometer reading the user entered, at [odoBaseSetMs]. Live odometer = base + trips since. */
-    val odoBaseMi: Double = 0.0,
-    val odoBaseSetMs: Long = 0L,
-    /** Passenger mode disables the "parked only" lock on the Trips/Health tabs. */
-    val passengerMode: Boolean = false,
-    /** Extra yaw correction (deg) if the unit is mounted rotated so forward is not screen -Z. */
-    val mountYawDeg: Float = 0f,
-)
 
 class SettingsStore(ctx: Context) {
     private val prefs = ctx.getSharedPreferences("truckdash", Context.MODE_PRIVATE)
