@@ -43,6 +43,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.truckdash.core.PaneRules
 import com.truckdash.ui.Dash
 import com.truckdash.ui.PillButton
 import com.truckdash.ui.PillKind
@@ -60,6 +61,8 @@ import kotlin.math.roundToInt
 fun SandboxApp() {
     var session by remember { mutableStateOf(SandboxSession.create()) }
     var backCallback by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // pane height in design dp (UI is laid out 440 dp wide): 782 = full 9:16, 391 = top/bottom half, 293 = short strip
+    var paneH by remember { mutableStateOf(FULL_PANE_H) }
 
     LaunchedEffect(session) {
         withContext(Dispatchers.Default) {
@@ -85,9 +88,12 @@ fun SandboxApp() {
             ) {
                 // ---- the "truck screen" (same aspect as the 14.4" portrait head unit) ----
                 BoxWithConstraints(Modifier.weight(1f).fillMaxHeight().padding(20.dp), contentAlignment = Alignment.Center) {
-                    val h = minOf(maxHeight, maxWidth * 16f / 9f)
+                    val ratio = paneH / 440f // height / width of the pane
+                    val availW = maxWidth - 16.dp
+                    val availH = maxHeight - 16.dp
+                    val iw = minOf(availW, availH / ratio)
                     Box(
-                        Modifier.width(h * 9f / 16f).height(h)
+                        Modifier.width(iw + 16.dp).height(iw * ratio + 16.dp)
                             .border(8.dp, Dash.surfaceHigh, RoundedCornerShape(22.dp))
                             .padding(8.dp).clip(RoundedCornerShape(14.dp)),
                     ) {
@@ -95,16 +101,20 @@ fun SandboxApp() {
                     }
                 }
                 // ---- simulator controls ----
-                ControlPanel(session, onReset = { session = SandboxSession.create() })
+                ControlPanel(session, paneH, { paneH = it }, onReset = { session = SandboxSession.create() })
             }
         }
     }
 }
 
+private const val FULL_PANE_H = 440f * 16f / 9f
+private const val HALF_PANE_H = 440f * 8f / 9f
+private const val STRIP_PANE_H = 440f * 2f / 3f
+
 private val ColorMuted = Dash.dim
 
 @Composable
-private fun ControlPanel(session: SandboxSession, onReset: () -> Unit) {
+private fun ControlPanel(session: SandboxSession, paneH: Float, onPaneH: (Float) -> Unit, onReset: () -> Unit) {
     val c = session.controller
     val status by c.status.collectAsState()
     val live by session.repo.live.collectAsState()
@@ -124,6 +134,21 @@ private fun ControlPanel(session: SandboxSession, onReset: () -> Unit) {
         Text(
             "Synthetic GPS + IMU feed the real engine and UI. Nothing here touches a truck.",
             color = ColorMuted, fontSize = 12.sp,
+        )
+
+        Section("Pane shape (split-screen)")
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Full 9:16" to FULL_PANE_H, "Half 9:8" to HALF_PANE_H, "Strip 3:2" to STRIP_PANE_H).forEach { (name, h) ->
+                PillButton(
+                    name, { onPaneH(h) }, small = true,
+                    kind = if (kotlin.math.abs(paneH - h) < 1f) PillKind.Primary else PillKind.Secondary,
+                )
+            }
+        }
+        val spec = PaneRules.classify(paneH)
+        LabeledSlider(
+            "Pane height", "${paneH.roundToInt()} dp · " + if (spec.tiny) "tiny" else if (spec.compact) "compact" else "full",
+            paneH, 200f..800f, onPaneH,
         )
 
         Section("Scenario")
@@ -195,7 +220,7 @@ private fun ControlPanel(session: SandboxSession, onReset: () -> Unit) {
             ),
             color = ColorMuted, fontSize = 11.sp,
         )
-        Text("Esc = back out of a trip. Window is resizable; the truck screen keeps its 9:16 shape.", color = ColorMuted, fontSize = 11.sp)
+        Text("Esc = back out of a trip. Window is resizable; the truck screen keeps the chosen pane shape.", color = ColorMuted, fontSize = 11.sp)
     }
 }
 

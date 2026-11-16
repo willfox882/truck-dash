@@ -52,6 +52,7 @@ import com.truckdash.ui.charts.LineChart
 import com.truckdash.ui.dashCheckboxColors
 import com.truckdash.ui.dashFieldColors
 import com.truckdash.ui.dashSwitchColors
+import com.truckdash.ui.pane
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -72,17 +73,17 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
     val now = System.currentTimeMillis()
 
     LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.fillMaxSize().padding(horizontal = pane(20.dp, 16.dp)),
+        verticalArrangement = Arrangement.spacedBy(pane(12.dp, 8.dp)),
     ) {
-        item { ScreenTitle("Health", Modifier.padding(top = 18.dp)) }
+        item { ScreenTitle("Health", Modifier.padding(top = pane(18.dp, 10.dp))) }
 
         item {
             DashCard(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f)) {
                         Label("Odometer")
-                        Numeral("%,.0f".format(odo), "km", 54.sp, modifier = Modifier.padding(top = 4.dp))
+                        Numeral("%,.0f".format(odo), "km", pane(54.sp, 40.sp), modifier = Modifier.padding(top = 4.dp))
                         Text("Tracked by GPS", color = Dash.faint, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
                     }
                     PillButton("Set", { dlg = Dlg.Odometer }, small = true)
@@ -117,7 +118,7 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
             item {
                 DashCard(Modifier.fillMaxWidth()) {
                     Label("Fuel use, L/100 km")
-                    Box(Modifier.fillMaxWidth().height(100.dp).padding(top = 8.dp)) {
+                    Box(Modifier.fillMaxWidth().height(pane(100.dp, 80.dp, 64.dp)).padding(top = 8.dp)) {
                         LineChart(stats.points.map { it.lPer100.toFloat() }, minSpan = 4f)
                     }
                 }
@@ -175,7 +176,7 @@ private fun MaintRow(item: MaintItem, odo: Double, now: Long, onDone: () -> Unit
         s.kmLeft?.let { if (it >= 0) "%,.0f km left".format(it) else "%,.0f km overdue".format(-it) },
         s.daysLeft?.let { if (it >= 0) "$it days left" else "${-it} days overdue" },
     ).joinToString("  ·  ")
-    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = pane(18.dp, 14.dp), vertical = pane(14.dp, 9.dp))) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(item.name, color = Dash.text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
@@ -185,7 +186,7 @@ private fun MaintRow(item: MaintItem, odo: Double, now: Long, onDone: () -> Unit
             TextAction("×", onDelete, color = Dash.faint)
         }
         // slim progress: neutral until it needs attention
-        Box(Modifier.fillMaxWidth().padding(top = 10.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(Dash.line)) {
+        Box(Modifier.fillMaxWidth().padding(top = pane(10.dp, 6.dp)).height(3.dp).clip(RoundedCornerShape(2.dp)).background(Dash.line)) {
             Box(Modifier.fillMaxWidth(s.used.coerceIn(0f, 1f)).height(3.dp).background(bar))
         }
     }
@@ -193,7 +194,7 @@ private fun MaintRow(item: MaintItem, odo: Double, now: Long, onDone: () -> Unit
 
 @Composable
 private fun FuelRow(f: FuelLog, onDelete: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(start = 18.dp, top = 12.dp, bottom = 12.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(start = pane(18.dp, 14.dp), top = pane(12.dp, 8.dp), bottom = pane(12.dp, 8.dp), end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(
                 "%.1f L  ·  $%.3f/L".format(f.litres, f.pricePerLitre),

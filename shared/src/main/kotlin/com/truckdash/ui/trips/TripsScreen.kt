@@ -48,6 +48,7 @@ import com.truckdash.ui.charts.RouteMap
 import com.truckdash.ui.charts.RouteMarker
 import com.truckdash.ui.formatClock
 import com.truckdash.ui.formatDurationShort
+import com.truckdash.ui.pane
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -75,10 +76,10 @@ private fun TripsList(vm: TripsPresenter, modifier: Modifier) {
     val trips by vm.trips.collectAsState()
     val sum by vm.summary.collectAsState()
     LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.fillMaxSize().padding(horizontal = pane(20.dp, 16.dp)),
+        verticalArrangement = Arrangement.spacedBy(pane(12.dp, 8.dp)),
     ) {
-        item { ScreenTitle("Trips", Modifier.padding(top = 18.dp)) }
+        item { ScreenTitle("Trips", Modifier.padding(top = pane(18.dp, 10.dp))) }
         item {
             StatGrid(
                 listOf(
@@ -91,7 +92,7 @@ private fun TripsList(vm: TripsPresenter, modifier: Modifier) {
         item {
             DashCard(Modifier.fillMaxWidth()) {
                 Label("Km per month")
-                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 10.dp)) {
+                Box(Modifier.fillMaxWidth().height(pane(130.dp, 90.dp, 70.dp)).padding(top = pane(10.dp, 6.dp))) {
                     BarChart(sum.monthly.map { it.second.toFloat() })
                 }
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -115,7 +116,7 @@ private fun TripsList(vm: TripsPresenter, modifier: Modifier) {
 private fun TripRow(t: Trip, onClick: () -> Unit) {
     val start = zoned(t.startMs)
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = pane(12.dp, 8.dp)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -157,11 +158,11 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
     val stopped = formatClock(t.stoppedMs / 1000)
     val start = zoned(t.startMs)
     LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.fillMaxSize().padding(horizontal = pane(20.dp, 16.dp)),
+        verticalArrangement = Arrangement.spacedBy(pane(12.dp, 8.dp)),
     ) {
         item {
-            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(top = pane(10.dp, 2.dp)), verticalAlignment = Alignment.CenterVertically) {
                 TextAction("‹ Trips", onBack, color = Dash.text)
                 Box(Modifier.weight(1f))
                 if (t.endMs != null) TextAction("Delete", { confirm = true }, color = Dash.red)
@@ -184,7 +185,7 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
         item {
             DashCard(Modifier.fillMaxWidth()) {
                 Label("Route")
-                Box(Modifier.fillMaxWidth().height(260.dp)) { RouteMap(route, markers) }
+                Box(Modifier.fillMaxWidth().height(pane(260.dp, 200.dp, 150.dp))) { RouteMap(route, markers) }
                 Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Dot(Dash.red, 6); Text(" Hard brake   ", color = Dash.dim, fontSize = 12.sp)
                     Dot(Dash.amber, 6); Text(" Hard launch   ", color = Dash.dim, fontSize = 12.sp)
@@ -195,7 +196,7 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
         item {
             DashCard(Modifier.fillMaxWidth()) {
                 Label("Speed  ·  peak ${speeds.maxOrNull()?.roundToInt() ?: 0} km/h")
-                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 8.dp)) {
+                Box(Modifier.fillMaxWidth().height(pane(130.dp, 90.dp, 70.dp)).padding(top = 8.dp)) {
                     LineChart(speeds, minOverride = 0f, minSpan = 30f)
                 }
             }
@@ -203,7 +204,7 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
         item {
             DashCard(Modifier.fillMaxWidth()) {
                 Label("Elevation  ·  ${alts.minOrNull()?.roundToInt() ?: 0} to ${alts.maxOrNull()?.roundToInt() ?: 0} m")
-                Box(Modifier.fillMaxWidth().height(110.dp).padding(top = 8.dp)) {
+                Box(Modifier.fillMaxWidth().height(pane(110.dp, 80.dp, 64.dp)).padding(top = 8.dp)) {
                     LineChart(alts, color = Dash.dim, minSpan = 12f)
                 }
             }
@@ -233,7 +234,7 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
 
 @Composable
 private fun EventRow(name: String, count: Int, color: androidx.compose.ui.graphics.Color) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(vertical = pane(11.dp, 7.dp)), verticalAlignment = Alignment.CenterVertically) {
         Dot(if (count > 0) color else Dash.line, 7)
         Text(name, color = Dash.text, fontSize = 16.sp, modifier = Modifier.padding(start = 10.dp).weight(1f))
         Text("$count", color = if (count > 0) Dash.text else Dash.faint, fontSize = 16.sp)

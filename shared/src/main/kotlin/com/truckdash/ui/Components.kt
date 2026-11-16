@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -41,7 +43,7 @@ fun Label(text: String, modifier: Modifier = Modifier, color: Color = Dash.faint
 
 @Composable
 fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, color = Dash.text, fontSize = 34.sp, fontWeight = FontWeight.Medium, letterSpacing = (-0.5).sp, modifier = modifier)
+    Text(text, color = Dash.text, fontSize = pane(34.sp, 26.sp), fontWeight = FontWeight.Medium, letterSpacing = (-0.5).sp, modifier = modifier)
 }
 
 @Composable
@@ -55,22 +57,26 @@ fun Dot(color: Color, size: Int = 7, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun DashCard(modifier: Modifier = Modifier, padding: Int = 18, content: @Composable ColumnScope.() -> Unit) {
-    Surface(color = Dash.surface, shape = RoundedCornerShape(22.dp), modifier = modifier) {
-        Column(Modifier.padding(padding.dp), content = content)
+fun DashCard(modifier: Modifier = Modifier, padding: Int? = null, content: @Composable ColumnScope.() -> Unit) {
+    val pad = padding ?: pane(18, 12)
+    Surface(color = Dash.surface, shape = RoundedCornerShape(pane(22, 18).dp), modifier = modifier) {
+        Column(Modifier.padding(pad.dp), content = content)
     }
 }
 
 /** A large value with a small unit, e.g. "12.4 km". Light weight numerals are the signature of the UI. */
 @Composable
-fun Numeral(value: String, unit: String = "", size: TextUnit = 30.sp, color: Color = Dash.text, modifier: Modifier = Modifier) {
+fun Numeral(
+    value: String, unit: String = "", size: TextUnit = 30.sp, color: Color = Dash.text, modifier: Modifier = Modifier,
+    unitSize: TextUnit = 13.sp,
+) {
     Row(modifier, verticalAlignment = Alignment.Bottom) {
         Text(
             value, color = color, fontSize = size, fontWeight = FontWeight.Light, maxLines = 1, softWrap = false,
             letterSpacing = (-0.5).sp, style = Tabular,
         )
         if (unit.isNotEmpty()) {
-            Text(" $unit", color = Dash.dim, fontSize = 13.sp, modifier = Modifier.padding(bottom = (size.value * 0.12f).dp))
+            Text(" $unit", color = Dash.dim, fontSize = unitSize, modifier = Modifier.padding(bottom = (size.value * 0.12f).dp))
         }
     }
 }
@@ -87,6 +93,10 @@ data class StatItem(
 /** Several stats in one matte card, separated by hairlines (no individual boxes). */
 @Composable
 fun StatGrid(items: List<StatItem>, modifier: Modifier = Modifier, columns: Int = 3, valueSize: TextUnit = 28.sp) {
+    val compact = LocalPaneSpec.current.compact
+    val size = if (compact) minOf(valueSize.value, 22f).sp else valueSize
+    val padH = if (compact) 12.dp else 16.dp
+    val padV = if (compact) 8.dp else 14.dp
     DashCard(modifier.fillMaxWidth(), padding = 0) {
         items.chunked(columns).forEachIndexed { row, cells ->
             if (row > 0) Hairline()
@@ -94,11 +104,14 @@ fun StatGrid(items: List<StatItem>, modifier: Modifier = Modifier, columns: Int 
                 for (i in 0 until columns) {
                     if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(Dash.line))
                     val it = cells.getOrNull(i)
-                    Column(Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Column(Modifier.weight(1f).padding(horizontal = padH, vertical = padV)) {
                         if (it != null) {
                             Label(it.label)
-                            Numeral(it.value, it.unit, valueSize, it.color, Modifier.padding(top = 4.dp))
-                            if (it.sub.isNotEmpty()) Text(it.sub, color = Dash.dim, fontSize = 12.sp)
+                            Numeral(
+                                it.value, it.unit, size, it.color, Modifier.padding(top = if (compact) 2.dp else 4.dp),
+                                unitSize = if (compact) 11.sp else 13.sp,
+                            )
+                            if (it.sub.isNotEmpty()) Text(it.sub, color = Dash.dim, fontSize = if (compact) 11.sp else 12.sp)
                         }
                     }
                 }
@@ -144,7 +157,7 @@ fun TextAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
 
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
-    Row(modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().padding(top = pane(10.dp, 4.dp)), verticalAlignment = Alignment.CenterVertically) {
         Label(title, Modifier.weight(1f))
         action?.invoke()
     }
@@ -184,8 +197,14 @@ fun DashDialog(
         onDismissRequest = onDismiss,
         containerColor = Dash.surfaceHigh,
         shape = RoundedCornerShape(26.dp),
-        title = { Text(title, color = Dash.text, fontWeight = FontWeight.Medium, fontSize = 20.sp) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { content() } },
+        title = { Text(title, color = Dash.text, fontWeight = FontWeight.Medium, fontSize = pane(20.sp, 18.sp)) },
+        // scrollable so the buttons stay reachable in a short split-screen pane
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(pane(10.dp, 6.dp)),
+            ) { content() }
+        },
         confirmButton = { TextAction(confirmText, onConfirm, color = if (danger) Dash.red else Dash.text) },
         dismissButton = { TextAction(dismissText, onDismiss) },
     )

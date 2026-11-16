@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -21,11 +22,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.truckdash.core.Geo
 import com.truckdash.ui.Dash
 import com.truckdash.ui.DashFonts
 import com.truckdash.ui.Label
+import com.truckdash.ui.LocalPaneSpec
 import com.truckdash.ui.Tabular
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -40,7 +43,10 @@ private const val ARC_SWEEP = 270f
 @Composable
 fun SpeedGauge(speedKmh: Float, hasFix: Boolean, modifier: Modifier = Modifier) {
     val shown by animateFloatAsState(speedKmh, tween(250), label = "speed")
-    Box(modifier, contentAlignment = Alignment.Center) {
+    val compact = LocalPaneSpec.current.compact
+    // the arc is sized by the smaller side, so in a short pane it is sized by height and the numeral scales with it
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        val numeral = if (compact) minOf(124f, minOf(maxWidth.value, maxHeight.value) * 0.36f) else 124f
         Canvas(Modifier.fillMaxSize()) {
             val d = minOf(size.width, size.height)
             val stroke = d * 0.016f
@@ -60,7 +66,8 @@ fun SpeedGauge(speedKmh: Float, hasFix: Boolean, modifier: Modifier = Modifier) 
             Text(
                 if (hasFix) shown.roundToInt().toString() else "--",
                 color = if (hasFix) Dash.text else Dash.faint,
-                fontSize = 124.sp, fontWeight = FontWeight.Light, letterSpacing = (-4).sp, style = Tabular,
+                fontSize = numeral.sp, fontWeight = FontWeight.Light, letterSpacing = (-numeral / 31f).sp, style = Tabular,
+                lineHeight = if (compact) (numeral * 1.1f).sp else TextUnit.Unspecified,
             )
             if (hasFix) Label("km/h", color = Dash.dim) else Label("Searching for GPS", color = Dash.amber)
         }

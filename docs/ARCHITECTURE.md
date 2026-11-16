@@ -14,6 +14,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | File | Purpose |
 |---|---|
 | `Geo.kt` | unit factors (m/s→km/h, m→km), haversine, compass label |
+| `PaneSpec.kt` | `PaneSpec(heightDp, compact, tiny)`, `PaneRules` (440 dp design width, compact < 620, tiny < 330, +/- 24 hysteresis), `PaneTracker`; tests in `PaneSpecTests.kt` |
 | `GForce.kt` | `Vec3`, `toVehicle(gravity, linear, yaw)` → `VehicleG` (long/lat/vert g in vehicle frame) |
 | `HarshEventDetector.kt` | hard accel/brake/corner: must be sustained 300 ms, then re-arm below 70 % of threshold |
 | `GravityTracker.kt` | accelerometer-only fallback: slow, steady-only gravity filter (sample-rate independent) |
@@ -33,6 +34,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 ## shared/.../ui
 | File | Purpose |
 |---|---|
+| `Pane.kt` | `LocalPaneSpec` + `pane(full, compact, tiny)` helper (provided by `DesignScale`) |
 | `TruckDashRoot.kt` | tab shell, speed lock ("PARKED ONLY"), `DesignScale` (layout as 440 dp wide at any density), `LocalBackHook` |
 | `Theme.kt`, `Components.kt`, `Format.kt` | design tokens (`Dash`, `DashFonts`), theme; shared components (`DashCard`, `StatGrid`, `Numeral`, `PillButton`, `TextAction`, `DashDialog`, `Hairline`, `Label`); duration formatting |
 | `live/LiveScreen.kt`, `live/Gauges.kt` | portrait live layout; `SpeedGauge`, `CompassRose`, `GBall` (Canvas, hairline style) |
@@ -52,4 +54,4 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `data/SettingsStore.kt`, `AppGraph.kt` | prefs-backed settings; service locator + first-run maintenance seeding |
 
 ## sandbox/ (desktop) - see `docs/SANDBOX.md`
-`VehicleSim.kt` (physics + scenarios), `SimController.kt`, `MemoryStore.kt`, `Session.kt`, `SandboxApp.kt`, `Main.kt`, `Screenshots.kt`.
+`VehicleSim.kt` (physics + scenarios), `SimController.kt`, `MemoryStore.kt`, `Session.kt`, `SandboxApp.kt` (incl. pane-shape selector), `Main.kt`, `Screenshots.kt` (full + pane-* shots). Tests: `SimTests.kt`, `PaneRenderTests.kt` (every screen at full/half/strip).

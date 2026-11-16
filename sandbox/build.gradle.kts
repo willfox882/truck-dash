@@ -40,6 +40,8 @@ compose.desktop {
     }
 }
 
+tasks.withType<Test> { systemProperty("java.awt.headless", "true") }
+
 // Headless PNG renders of the real UI: ./gradlew :sandbox:screenshots
 tasks.register<JavaExec>("screenshots") {
     group = "verification"

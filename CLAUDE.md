@@ -31,6 +31,7 @@ Sandbox network must allow `dl.google.com` + `maven.google.com` for Gradle/AGP/S
   - Reuse `Components.kt` (`DashCard`, `StatGrid`, `Numeral`, `PillButton`, `TextAction`, `DashDialog`, `Hairline`, `Label`); lists are rows separated by hairlines, not stacked coloured cards.
   - **No em-dashes** anywhere (UI text, docs, commit messages, chat). Use commas, colons or the middle dot. Short units go beside the value, long ones in `StatItem.sub`.
   - Portrait only. Big touch targets (head unit). After any UI change run `:sandbox:screenshots` and look at every screen.
+- **Split-screen panes (PaneSpec):** the app may run in a top/bottom half (about 440 x 391 dp) or a short strip. Every new screen must read `LocalPaneSpec` / `pane(full, compact, tiny)` (compact < 620 dp, tiny < 330 dp) and be checked in the sandbox at all three shapes (`pane-full/half/strip-*.png`, plus `PaneRenderTests`). Full-size layout must stay unchanged.
 - Safety: Trips/Health tabs lock above 5 km/h unless Passenger mode (`ui/TruckDashRoot.kt`). Keep that rule for any dense UI.
 - Room: schema exported to `app/schemas/`. Any entity change → bump `version` and add a migration (never destructive). v1→v2 (imperial→metric) lives in `data/Migrations.kt` and was verified against real SQLite; do the same for future ones.
 - Version catalog: `gradle/libs.versions.toml`. Don't hard-code versions in `build.gradle.kts`.

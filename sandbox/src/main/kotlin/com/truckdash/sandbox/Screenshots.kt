@@ -3,7 +3,20 @@ package com.truckdash.sandbox
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
+import com.truckdash.ui.Dash
+import com.truckdash.ui.DashDialog
 import com.truckdash.ui.DashTab
+import com.truckdash.ui.DesignScale
+import com.truckdash.ui.ParkedOnly
+import com.truckdash.ui.dashFieldColors
 import com.truckdash.ui.TruckDashRoot
 import com.truckdash.ui.TruckDashTheme
 import org.jetbrains.skia.EncodedImageFormat
@@ -54,5 +67,35 @@ fun main(args: Array<String>) {
     for (i in 0 until 8) s2.render(i * 120_000_000L)
     File(out, "live-parked.png").writeBytes(s2.render(2_000_000_000L).encodeToData(EncodedImageFormat.PNG)!!.bytes)
     s2.close()
+
+    // 4) split-screen panes: every screen at full (9:16), half (9:8) and strip (3:2) shapes
+    fun paneShot(name: String, w: Int, h: Int, content: @androidx.compose.runtime.Composable () -> Unit) {
+        val sc = ImageComposeScene(width = w, height = h, density = Density(1f)) { TruckDashTheme { content() } }
+        for (i in 0 until 8) sc.render(i * 120_000_000L)
+        File(out, "$name.png").writeBytes(sc.render(2_000_000_000L).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        sc.close()
+        println("wrote $name.png (${w}x$h)")
+    }
+    val panes = listOf("full" to 1440, "half" to 720, "strip" to 540)
+    for ((shape, h) in panes) {
+        c.startScenario(Scenarios.hardEvents); c.runFor(52.0)
+        paneShot("pane-$shape-live", 810, h) { TruckDashRoot(session.repo, DashTab.Live) }
+        c.stopScenario(); c.runFor(2.0)
+        paneShot("pane-$shape-trips", 810, h) { TruckDashRoot(session.repo, DashTab.Trips) }
+        paneShot("pane-$shape-trip-detail", 810, h) { TruckDashRoot(session.repo, DashTab.Trips, hardTrip) }
+        paneShot("pane-$shape-health", 810, h) { TruckDashRoot(session.repo, DashTab.Health) }
+        paneShot("pane-$shape-parked-only", 810, h) { DesignScale { Column(Modifier.fillMaxSize().background(Dash.bg)) { ParkedOnly(87f) } } }
+        paneShot("pane-$shape-dialog", 810, h) {
+            DesignScale {
+                Box(Modifier.fillMaxSize().background(Dash.bg)) {
+                    DashDialog("Add fill-up", {}, "Save", {}) {
+                        for (l in listOf("Litres", "Price per litre ($/L)", "Odometer (km)")) {
+                            OutlinedTextField("12.5", {}, label = { Text(l) }, singleLine = true, colors = dashFieldColors(), modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            }
+        }
+    }
     println("done")
 }

@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.truckdash.core.PaneTracker
 import com.truckdash.repo.DashRepository
 import com.truckdash.ui.health.HealthPresenter
 import com.truckdash.ui.health.HealthScreen
@@ -53,12 +54,15 @@ val LocalBackHook = staticCompositionLocalOf<@Composable (enabled: Boolean, onBa
 /**
  * Lays everything out as if the screen were [designWidthDp] wide, whatever the real pixel density is.
  * Head units ship with arbitrary density settings; this keeps the UI proportions identical everywhere.
+ * Also provides [LocalPaneSpec] (compact / tiny) from the real aspect ratio, so split-screen panes get denser layouts.
  */
 @Composable
 fun DesignScale(designWidthDp: Float = 440f, content: @Composable () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val d = Density(density = constraints.maxWidth / designWidthDp, fontScale = 1f)
-        CompositionLocalProvider(LocalDensity provides d) {
+        val tracker = remember { PaneTracker() }
+        val pane = tracker.update(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
+        CompositionLocalProvider(LocalDensity provides d, LocalPaneSpec provides pane) {
             Box(Modifier.fillMaxSize()) { content() }
         }
     }
@@ -91,7 +95,7 @@ fun TruckDashRoot(
                 }
             }
             Hairline()
-            Row(Modifier.fillMaxWidth().height(60.dp)) {
+            Row(Modifier.fillMaxWidth().height(pane(60.dp, 48.dp, 40.dp))) {
                 DashTab.entries.forEach { t ->
                     val selected = t == tab
                     val disabled = locked && t != DashTab.Live
@@ -117,23 +121,27 @@ fun TruckDashRoot(
 }
 
 @Composable
-private fun ParkedOnly(kmh: Float) {
+internal fun ParkedOnly(kmh: Float) {
+    val p = LocalPaneSpec.current
     Column(
-        Modifier.fillMaxSize().padding(40.dp),
+        Modifier.fillMaxSize().padding(pane(40.dp, 16.dp)),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Dot(Dash.amber, 9)
+        Dot(Dash.amber, pane(9, 8))
         Text(
-            "Available when parked", color = Dash.text, fontSize = 24.sp, fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(top = 18.dp),
+            "Available when parked", color = Dash.text, fontSize = pane(24.sp, 18.sp, 16.sp), fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(top = pane(18.dp, 10.dp, 8.dp)),
         )
         Text(
-            "${kmh.roundToInt()} km/h", color = Dash.dim, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp),
+            "${kmh.roundToInt()} km/h", color = Dash.dim, fontSize = pane(15.sp, 14.sp), modifier = Modifier.padding(top = pane(6.dp, 4.dp)),
         )
-        Text(
-            "Stop to view this screen, or turn on Passenger mode in Health.",
-            color = Dash.faint, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 18.dp),
-        )
+        if (!p.tiny) {
+            Text(
+                "Stop to view this screen, or turn on Passenger mode in Health.",
+                color = Dash.faint, fontSize = pane(14.sp, 13.sp), textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = pane(18.dp, 8.dp)),
+            )
+        }
     }
 }
