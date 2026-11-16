@@ -152,7 +152,7 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier, action: (@Compos
 
 @Composable
 fun dashSwitchColors() = SwitchDefaults.colors(
-    checkedThumbColor = Color.White, checkedTrackColor = Dash.green, checkedBorderColor = Color.Transparent,
+    checkedThumbColor = Dash.onLight, checkedTrackColor = Dash.text, checkedBorderColor = Color.Transparent,
     uncheckedThumbColor = Dash.dim, uncheckedTrackColor = Dash.surfaceHigh, uncheckedBorderColor = Dash.line,
 )
 

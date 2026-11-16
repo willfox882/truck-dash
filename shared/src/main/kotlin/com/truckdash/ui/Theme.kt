@@ -28,8 +28,11 @@ object Dash {
     val onLight = Color(0xFF0A0A0B)
 }
 
-/** Tabular figures so live numbers don't jitter as digits change. */
-val Tabular = TextStyle(fontFeatureSettings = "tnum")
+/**
+ * Tabular figures so live numbers don't jitter as digits change. Must carry the font family:
+ * an explicit `style` replaces the theme text style, so without it numerals fall back to the platform font.
+ */
+val Tabular: TextStyle get() = TextStyle(fontFamily = DashFonts.family, fontFeatureSettings = "tnum")
 
 /** Platform code sets this at startup (Android: res/font, desktop: classpath font/). */
 object DashFonts {
