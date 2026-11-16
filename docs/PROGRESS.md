@@ -11,9 +11,9 @@ _Update this file at the end of every session. Newest entry on top of "Log"._
 - Project scaffold (Gradle KTS, version catalog, wrapper 8.14.3, Compose, Room+KSP)
 - `DriveService`: GPS + IMU → live state; automatic trip recording; orphan-trip recovery
 - LIVE tab: speed gauge (0–120), compass rose, G-ball, trip/moving/avg/max/alt/grade tiles, clock, REC + GPS status
-- TRIPS tab: list, 7d/month/all-time miles, 6-month bar chart, detail (route map w/ harsh-event dots, speed + elevation charts, stats, delete)
-- HEALTH tab: GPS odometer (+ manual set), maintenance items (seeded defaults, Done/add/delete), fuel log, MPG/avg/cost-per-mile + trend, passenger-mode switch
-- Speed lock on TRIPS/HEALTH above 3 mph
+- TRIPS tab: list, 7d/month/all-time km, 6-month bar chart, detail (route map w/ harsh-event dots, speed + elevation charts, stats, delete)
+- HEALTH tab: GPS odometer (+ manual set), maintenance items (seeded defaults, Done/add/delete), fuel log, L/100 km avg/last/cost per 100 km + trend, passenger-mode switch
+- Speed lock on TRIPS/HEALTH above 5 km/h
 
 ## Next (suggested order)
 1. **Try the desktop sandbox first** (`docs/SANDBOX.md`), then **install on the head unit and field-test** (see `docs/INSTALL.md`). Check: GPS fix, speed vs. truck speedo, g-ball direction (accel = up, right turn = right), heading, REC start/stop.

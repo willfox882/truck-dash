@@ -13,7 +13,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 ## shared/.../core  (pure Kotlin; tests in `app/src/test/.../core/CoreTests.kt`)
 | File | Purpose |
 |---|---|
-| `Geo.kt` | unit factors (m/s→mph, m→mi/ft), haversine, compass label |
+| `Geo.kt` | unit factors (m/s→km/h, m→km), haversine, compass label |
 | `GForce.kt` | `Vec3`, `toVehicle(gravity, linear, yaw)` → `VehicleG` (long/lat/vert g in vehicle frame) |
 | `HarshEventDetector.kt` | hard accel/brake/corner detection with per-type cooldown |
 | `TripSegmenter.kt` | speed stream → START/END trip events (hold + idle timers) |
@@ -36,7 +36,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `Theme.kt`, `Format.kt` | `Dash` palette, `DashCard`, `StatTile`; duration formatting |
 | `live/LiveScreen.kt`, `live/Gauges.kt` | portrait live layout; `SpeedGauge`, `CompassRose`, `GBall` (Canvas) |
 | `trips/TripsScreen.kt`, `trips/TripsPresenter.kt` | list + monthly chart + detail (route, speed/elevation, events) |
-| `health/HealthScreen.kt`, `health/HealthPresenter.kt` | odometer, maintenance, fuel/MPG, passenger-mode switch, dialogs |
+| `health/HealthScreen.kt`, `health/HealthPresenter.kt` | odometer, maintenance, fuel (L/100 km), passenger-mode switch, dialogs |
 | `charts/Charts.kt` | `LineChart`, `BarChart`, `RouteMap` |
 
 ## app/ (Android only)
