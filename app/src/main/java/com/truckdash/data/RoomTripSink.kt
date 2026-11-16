@@ -5,6 +5,7 @@ import com.truckdash.model.DriveEvent
 import com.truckdash.model.TrackPoint
 import com.truckdash.model.Trip
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,7 +16,10 @@ import kotlinx.coroutines.launch
  * single IO thread. Trip row ids are resolved lazily (the insert may not have finished yet).
  */
 class RoomTripSink(private val db: AppDatabase) : TripSink {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO.limitedParallelism(1) +
+            CoroutineExceptionHandler { _, e -> android.util.Log.e("RoomTripSink", "DB write failed", e) },
+    )
     private val dao get() = db.tripDao()
     private val ids = HashMap<Long, CompletableDeferred<Long>>()
 
@@ -40,17 +44,21 @@ class RoomTripSink(private val db: AppDatabase) : TripSink {
 
     override fun pointsAdded(key: Long, points: List<TrackPoint>) {
         val d = ids[key] ?: return
-        scope.launch { dao.insertPoints(points.map { it.toEntity(d.await()) }) }
+        scope.launch { runCatching { dao.insertPoints(points.map { it.toEntity(d.await()) }) }.onFailure(::logFail) }
     }
 
     override fun eventAdded(key: Long, event: DriveEvent) {
         val d = ids[key] ?: return
-        scope.launch { dao.insertEvent(event.toEntity(d.await())) }
+        scope.launch { runCatching { dao.insertEvent(event.toEntity(d.await())) }.onFailure(::logFail) }
     }
 
     override fun tripUpdated(key: Long, trip: Trip, final: Boolean) {
         val d = ids[key] ?: return
-        scope.launch { dao.updateTrip(trip.toEntity(d.await())) }
+        scope.launch { runCatching { dao.updateTrip(trip.toEntity(d.await())) }.onFailure(::logFail) }
         if (final) ids.remove(key)
+    }
+
+    private fun logFail(e: Throwable) {
+        android.util.Log.e("RoomTripSink", "DB write failed", e)
     }
 }

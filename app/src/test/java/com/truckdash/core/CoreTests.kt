@@ -83,20 +83,69 @@ class TripSegmenterTest {
 }
 
 class HarshEventDetectorTest {
-    @Test fun detectsBrakeAndCooldown() {
-        val d = HarshEventDetector(cooldownMs = 3_000)
-        assertEquals(HarshType.BRAKE, d.update(0, -0.5f, 0f, 20f))
-        assertNull(d.update(1_000, -0.5f, 0f, 20f))
-        assertEquals(HarshType.BRAKE, d.update(4_000, -0.5f, 0f, 20f))
+    @Test fun needsSustainedOverThresholdThenRearms() {
+        val d = HarshEventDetector()
+        assertNull(d.update(0, -0.5f, 0f, 20f))        // a single spike (pothole) is not an event
+        assertNull(d.update(200, -0.5f, 0f, 20f))
+        assertEquals(HarshType.BRAKE, d.update(350, -0.5f, 0f, 20f)) // held 350 ms
+        assertNull(d.update(1_000, -0.5f, 0f, 20f))     // same long brake = same event
+        assertNull(d.update(1_500, -0.1f, 0f, 20f))     // released -> re-armed
+        assertNull(d.update(2_000, -0.5f, 0f, 20f))
+        assertEquals(HarshType.BRAKE, d.update(2_400, -0.5f, 0f, 20f))
+    }
+
+    @Test fun vibrationBlipIgnored() {
+        val d = HarshEventDetector()
+        assertNull(d.update(0, -0.6f, 0f, 20f))
+        assertNull(d.update(100, 0.0f, 0f, 20f)) // gone before holdMs
+        assertNull(d.update(200, -0.6f, 0f, 20f))
+        assertNull(d.update(400, 0.0f, 0f, 20f))
     }
 
     @Test fun ignoresAtLowSpeed() {
-        assertNull(HarshEventDetector().update(0, -0.9f, 0f, 1f))
+        val d = HarshEventDetector()
+        assertNull(d.update(0, -0.9f, 0f, 1f))
+        assertNull(d.update(1_000, -0.9f, 0f, 1f))
     }
 
-    @Test fun cornerDetected() {
-        assertEquals(HarshType.CORNER, HarshEventDetector().update(0, 0f, -0.5f, 15f))
+    @Test fun longCornerIsOneEvent() {
+        val d = HarshEventDetector()
+        var n = 0
+        for (t in 0..8_000 step 50) if (d.update(t.toLong(), 0f, -0.5f, 15f) == HarshType.CORNER) n++
+        assertEquals(1, n)
     }
+}
+
+class GravityTrackerTest {
+    private val g = 9.80665f
+
+    // Phone upright, screen facing driver. Braking at 0.4 g pushes the device forward => raw accel gains +Z.
+    private fun run(rateHz: Int) {
+        val t = GravityTracker()
+        val dtMs = 1000 / rateHz
+        var now = 0L
+        var lastLong = 0f
+        // 3 s at rest, 4 s hard brake, 1 s at rest again
+        fun feed(seconds: Int, zExtra: Float, onSample: (Float) -> Unit) {
+            repeat(seconds * rateHz) {
+                val raw = Vec3(0f, g, zExtra)
+                val lin = t.update(now, raw)
+                if (lin != null) onSample(GForce.toVehicle(t.gravity!!, lin)!!.longG)
+                now += dtMs
+            }
+        }
+        feed(3, 0f) { }
+        var minDuringBrake = 0f
+        feed(4, 0.4f * g) { lastLong = it; if (it < minDuringBrake) minDuringBrake = it }
+        assertEquals("$rateHz Hz: g must not decay during a sustained brake", -0.4f, lastLong, 0.03f)
+        assertTrue(minDuringBrake > -0.45f)
+        var maxAfter = 0f
+        feed(1, 0f) { if (it > maxAfter) maxAfter = it }
+        assertTrue("$rateHz Hz: no phantom forward acceleration after release (was $maxAfter)", maxAfter < 0.05f)
+    }
+
+    @Test fun sustainedBrakeDoesNotLeakInto50Hz() = run(50)
+    @Test fun sustainedBrakeDoesNotLeakInto200Hz() = run(200)
 }
 
 class ElevationTest {

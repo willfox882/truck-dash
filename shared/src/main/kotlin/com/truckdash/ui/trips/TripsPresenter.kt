@@ -50,6 +50,7 @@ class TripsPresenter(private val repo: DashRepository, private val scope: Corout
     }
 
     fun delete(id: Long) {
+        if (detail.value?.trip?.endMs == null) return // can't delete a trip that is still being recorded
         scope.launch {
             repo.deleteTrip(id)
             detail.value = null

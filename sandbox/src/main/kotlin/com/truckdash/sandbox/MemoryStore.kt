@@ -16,7 +16,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
 /** In-memory stand-in for Room. Thread-safe enough for one sim thread + the UI thread. */
@@ -31,6 +32,9 @@ class MemoryStore {
     private var nextId = 1L
 
     @Synchronized fun nextId(): Long = nextId++
+
+    /** Odometer feed from the engine (see DriveEngine.onDistance). */
+    fun addDistance(deltaM: Double) = settingsFlow.update { it.copy(distTotalM = it.distTotalM + deltaM) }
 
     /** Each engine gets its own sink so per-engine trip keys never collide. */
     fun newSink(): TripSink = object : TripSink {
@@ -77,15 +81,20 @@ class SandboxRepo(private val store: MemoryStore, engine: DriveEngine) : DashRep
     override val maintenance: Flow<List<MaintItem>> = store.maintFlow
     override val fuelLogs: Flow<List<FuelLog>> = store.fuelFlow
 
-    override val odometerKm: Flow<Double> = combine(store.settingsFlow, store.tripsFlow) { s, trips ->
-        s.odoBaseKm + trips.filter { it.startMs >= s.odoBaseSetMs }.sumOf { it.distanceM } * Geo.M_TO_KM
-    }
+    override val odometerKm: Flow<Double> = store.settingsFlow
+        .map { it.odoBaseKm + (it.distTotalM - it.odoBaseTotalM) * Geo.M_TO_KM }
+        .distinctUntilChanged()
 
     override suspend fun tripDetail(id: Long) = store.detail(id)
-    override suspend fun deleteTrip(id: Long) = store.deleteTrip(id)
+    override suspend fun deleteTrip(id: Long) {
+        if (store.tripsFlow.value.firstOrNull { it.id == id }?.endMs != null) store.deleteTrip(id)
+    }
 
-    override fun setOdometer(km: Double) =
-        store.settingsFlow.update { it.copy(odoBaseKm = km, odoBaseSetMs = System.currentTimeMillis()) }
+    override fun setOdometer(km: Double) {
+        val firstTime = store.settingsFlow.value.odoBaseSetMs == 0L
+        store.settingsFlow.update { it.copy(odoBaseKm = km, odoBaseSetMs = System.currentTimeMillis(), odoBaseTotalM = it.distTotalM) }
+        if (firstTime) store.maintFlow.update { l -> l.map { if (it.lastOdoKm == 0.0) it.copy(lastOdoKm = km) else it } }
+    }
 
     override fun setPassengerMode(on: Boolean) = store.settingsFlow.update { it.copy(passengerMode = on) }
 

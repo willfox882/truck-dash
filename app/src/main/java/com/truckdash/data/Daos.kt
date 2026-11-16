@@ -20,10 +20,10 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE id = :id")
     suspend fun trip(id: Long): TripEntity?
 
-    @Query("SELECT * FROM points WHERE tripId = :id ORDER BY tMs")
+    @Query("SELECT * FROM points WHERE tripId = :id ORDER BY id")
     suspend fun points(id: Long): List<PointEntity>
 
-    @Query("SELECT * FROM events WHERE tripId = :id ORDER BY tMs")
+    @Query("SELECT * FROM events WHERE tripId = :id ORDER BY id")
     suspend fun events(id: Long): List<EventEntity>
 
     @Query("DELETE FROM trips WHERE id = :id")
@@ -34,6 +34,12 @@ interface TripDao {
 
     @Query("SELECT * FROM trips WHERE endMs IS NULL")
     suspend fun openTrips(): List<TripEntity>
+
+    @Query("SELECT COALESCE(SUM(distanceM), 0) FROM trips")
+    suspend fun totalDistance(): Double
+
+    @Query("SELECT COALESCE(SUM(distanceM), 0) FROM trips WHERE startMs < :ms")
+    suspend fun distanceBefore(ms: Long): Double
 
     @Query("SELECT MAX(tMs) FROM points WHERE tripId = :id")
     suspend fun lastPointTime(id: Long): Long?
@@ -56,6 +62,10 @@ interface MaintDao {
 
     @Query("SELECT * FROM maintenance_items ORDER BY name")
     fun observeAll(): Flow<List<MaintenanceItemEntity>>
+
+    /** Items never marked done still have lastOdoKm = 0; point them at the odometer the user just entered. */
+    @Query("UPDATE maintenance_items SET lastOdoKm = :km WHERE lastOdoKm = 0")
+    suspend fun rebaseUntouched(km: Double)
 
     @Query("SELECT COUNT(*) FROM maintenance_items")
     suspend fun count(): Int

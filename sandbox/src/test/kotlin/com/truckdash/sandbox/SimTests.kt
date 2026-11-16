@@ -5,6 +5,8 @@ import com.truckdash.engine.DriveEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 class SimTests {
@@ -58,5 +60,43 @@ class SimTests {
         assertTrue(s.store.tripsFlow.value.all { it.endMs != null })
         assertEquals(5, s.store.maintFlow.value.size)
         assertTrue(s.store.fuelFlow.value.size >= 4)
+    }
+
+    @Test fun odometerSurvivesMidTripSetAndTripDeletion() = runBlocking {
+        val s = SandboxSession.create(seedHistory = false, nowMs = 1_700_000_000_000L)
+        s.controller.startScenario(Scenarios.cityLoop)
+        s.controller.runFor(120.0)                                   // mid-trip
+        val kmAtSet = s.engine.state.value.tripKm
+        assertTrue(s.engine.state.value.recording)
+        s.repo.setOdometer(1_000.0)                                  // user enters the odometer at a stop
+        s.controller.runFor(Scenarios.cityLoop.totalS)               // finish the trip
+        val tripKm = s.store.tripsFlow.value.single().distanceM * Geo.M_TO_KM
+        val odo = s.repo.odometerKm.first()
+        assertEquals("rest of the in-progress trip must still count", 1_000.0 + (tripKm - kmAtSet), odo, 0.15)
+        // deleting the trip must not change the odometer
+        s.repo.deleteTrip(s.store.tripsFlow.value.single().id)
+        assertEquals(0, s.store.tripsFlow.value.size)
+        assertEquals(odo, s.repo.odometerKm.first(), 1e-9)
+    }
+
+    @Test fun cannotDeleteTheTripThatIsBeingRecorded() = runBlocking {
+        val s = SandboxSession.create(seedHistory = false)
+        s.controller.startScenario(Scenarios.cityLoop)
+        s.controller.runFor(60.0)
+        assertTrue(s.engine.state.value.recording)
+        s.repo.deleteTrip(s.store.tripsFlow.value.single().id)
+        assertEquals(1, s.store.tripsFlow.value.size)
+    }
+
+    @Test fun firstOdometerEntryRebasesUntouchedMaintenance() = runBlocking {
+        val s = SandboxSession.create(seedHistory = true, nowMs = 1_760_000_000_000L)
+        s.store.maintFlow.value = listOf(
+            com.truckdash.model.MaintItem(1, "Oil", 8000, 180, 0.0, 0L),
+            com.truckdash.model.MaintItem(2, "Done once", 8000, 180, 5_000.0, 0L),
+        )
+        s.repo.setOdometer(142_000.0)
+        val items = s.store.maintFlow.value
+        assertEquals(142_000.0, items[0].lastOdoKm, 0.001)
+        assertEquals(5_000.0, items[1].lastOdoKm, 0.001)
     }
 }

@@ -24,9 +24,23 @@ object AppGraph {
     fun init(ctx: Context) {
         db = AppDatabase.build(ctx)
         settings = SettingsStore(ctx)
-        engine = DriveEngine(RoomTripSink(db))
+        engine = DriveEngine(RoomTripSink(db), onDistance = settings::addDistance)
         repo = RoomDashRepository(db, settings, engine)
+        initDistanceCounterOnce()
         seedDefaultsOnce()
+    }
+
+    /** Installs from before the counter existed: derive it once from the stored trips. */
+    private fun initDistanceCounterOnce() {
+        if (settings.distInitialised) return
+        io.launch {
+            val dao = db.tripDao()
+            val base = settings.value.odoBaseSetMs
+            val total = dao.totalDistance()
+            val before = if (base > 0) dao.distanceBefore(base) else 0.0
+            settings.update { it.copy(distTotalM = it.distTotalM + total, odoBaseTotalM = it.odoBaseTotalM + before) }
+            settings.distInitialised = true
+        }
     }
 
     private fun seedDefaultsOnce() {

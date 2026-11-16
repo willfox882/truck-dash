@@ -141,7 +141,9 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
             Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Text("‹ Back", fontSize = 18.sp) }
                 Box(Modifier.weight(1f))
-                TextButton(onClick = { confirm = true }) { Text("Delete", color = Dash.red, fontSize = 16.sp) }
+                if (t.endMs != null) {
+                    TextButton(onClick = { confirm = true }) { Text("Delete", color = Dash.red, fontSize = 16.sp) }
+                }
             }
             Text(fmtDate(t.startMs), color = Dash.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }

@@ -90,4 +90,67 @@ class DriveEngineTest {
         assertEquals(30_000.0, trip.stoppedMs.toDouble(), 1_500.0)
         assertTrue(sink.points.count { it.speedMps == 0f } >= 29)
     }
+
+    @Test fun tripEndsWhenFixesStopArrivingAndNextDriveIsSeparate() {
+        val sink = RecordingSink()
+        val e = DriveEngine(sink)
+        var t = 0L
+        repeat(30) { e.fix(t, 20f, 40.0 + it * 0.0002); t += 1_000 }
+        assertTrue(e.state.value.recording)
+        val lastFixClock = t - 1_000
+        // unit suspends (ACC off): only ticks, no fixes; 130 s later the trip must be closed
+        e.tick(lastFixClock + 130_000)
+        assertFalse(e.state.value.recording)
+        val first = sink.updates.last()
+        assertTrue(first.second)
+        assertEquals(wall0 + lastFixClock, first.first.endMs)
+        // 8 hours later the next drive is its own trip
+        t = lastFixClock + 8 * 3_600_000L
+        repeat(30) { e.fix(t, 20f, 41.0 + it * 0.0002); t += 1_000 }
+        assertEquals(2, sink.started.size)
+    }
+
+    @Test fun parkedWithGpsSpeedJitterEndsTripWithoutPhantomDistance() {
+        val sink = RecordingSink()
+        val e = DriveEngine(sink)
+        var t = 0L
+        repeat(15) { e.fix(t, 15f, 40.0 + it * 0.0001); t += 1_000 }
+        repeat(30 * 60) { e.fix(t, if (it % 2 == 0) 0f else 0.6f, 40.002); t += 1_000 } // 30 min of jitter
+        assertFalse(e.state.value.recording)
+        assertEquals(1, sink.started.size)
+        assertTrue("distance ${sink.updates.last().first.distanceM}", sink.updates.last().first.distanceM < 200.0)
+    }
+
+    @Test fun speedSpikeAndPoorAccuracyFixesAreIgnored() {
+        val sink = RecordingSink()
+        val e = DriveEngine(sink)
+        var t = 0L
+        repeat(15) { e.fix(t, 20f); t += 1_000 }
+        e.fix(t, 90f); t += 1_000                                          // impossible jump
+        e.onLocation(t, wall0 + t, 40.0, -105.0, 1600.0, 20f, 0f, 200f); t += 1_000 // 200 m accuracy
+        repeat(5) { e.fix(t, 20f); t += 1_000 }
+        e.stop(t, wall0 + t)
+        assertEquals(20f, sink.updates.last().first.maxSpeedMps, 0.01f)
+    }
+
+    @Test fun odometerFeedMatchesTripDistance() {
+        val sink = RecordingSink()
+        var metres = 0.0
+        val e = DriveEngine(sink) { metres += it }
+        var t = 0L
+        repeat(120) { e.fix(t, 20f, 40.0 + it * 0.00018); t += 1_000 }
+        e.stop(t, wall0 + t)
+        val trip = sink.updates.last().first
+        assertEquals(trip.distanceM, metres, 0.5)
+        assertTrue(metres > 2_000)
+    }
+
+    @Test fun lastSpeedIsKeptWhenGpsDrops() {
+        val e = DriveEngine(RecordingSink())
+        var t = 0L
+        repeat(10) { e.fix(t, 25f); t += 1_000 }
+        e.tick(t + 6_000)
+        assertFalse(e.state.value.hasFix)
+        assertEquals(90f, e.state.value.speedKmh, 0.5f) // keeps the speed lock engaged through a tunnel
+    }
 }

@@ -9,30 +9,31 @@ import com.truckdash.model.Settings
 import com.truckdash.model.Trip
 import com.truckdash.model.TripDetail
 import com.truckdash.repo.DashRepository
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class RoomDashRepository(
     private val db: AppDatabase,
     private val store: SettingsStore,
     engine: DriveEngine,
 ) : DashRepository {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override val live: StateFlow<LiveState> = engine.state
     override val settings: StateFlow<Settings> = store.flow
 
     override val trips: Flow<List<Trip>> = db.tripDao().observeTrips().map { l -> l.map { it.toModel() } }
 
-    /** Odometer = user-entered base + GPS-recorded trip distance since it was set. */
+    /** Odometer = user-entered base + GPS distance driven since it was set (not derived from trip rows). */
     override val odometerKm: Flow<Double> = store.flow
-        .distinctUntilChangedBy { it.odoBaseSetMs to it.odoBaseKm }
-        .flatMapLatest { s ->
-            db.tripDao().observeDistanceSince(s.odoBaseSetMs).map { s.odoBaseKm + it * Geo.M_TO_KM }
-        }
+        .map { it.odoBaseKm + (it.distTotalM - it.odoBaseTotalM) * Geo.M_TO_KM }
+        .distinctUntilChanged()
 
     override val maintenance: Flow<List<MaintItem>> = db.maintDao().observeAll().map { l -> l.map { it.toModel() } }
     override val fuelLogs: Flow<List<FuelLog>> = db.fuelDao().observeAll().map { l -> l.map { it.toModel() } }
@@ -43,10 +44,16 @@ class RoomDashRepository(
         return TripDetail(t.toModel(), dao.points(id).map { it.toModel() }, dao.events(id).map { it.toModel() })
     }
 
-    override suspend fun deleteTrip(id: Long) = db.tripDao().deleteTrip(id)
+    override suspend fun deleteTrip(id: Long) {
+        val t = db.tripDao().trip(id) ?: return
+        if (t.endMs != null) db.tripDao().deleteTrip(id) // never delete the trip being recorded
+    }
 
-    override fun setOdometer(km: Double) =
-        store.update { it.copy(odoBaseKm = km, odoBaseSetMs = System.currentTimeMillis()) }
+    override fun setOdometer(km: Double) {
+        val firstTime = store.value.odoBaseSetMs == 0L
+        store.update { it.copy(odoBaseKm = km, odoBaseSetMs = System.currentTimeMillis(), odoBaseTotalM = it.distTotalM) }
+        if (firstTime) scope.launch { db.maintDao().rebaseUntouched(km) }
+    }
 
     override fun setPassengerMode(on: Boolean) = store.update { it.copy(passengerMode = on) }
 

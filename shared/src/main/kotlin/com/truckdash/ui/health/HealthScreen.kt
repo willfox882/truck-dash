@@ -108,7 +108,7 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
                 }
             }
         }
-        items(fuel.take(8), key = { "f${it.id}" }) { f -> FuelRow(f) { vm.deleteFuel(f) } }
+        items(fuel.take(30), key = { "f${it.id}" }) { f -> FuelRow(f) { vm.deleteFuel(f) } }
 
         item {
             DashCard(Modifier.fillMaxWidth()) {

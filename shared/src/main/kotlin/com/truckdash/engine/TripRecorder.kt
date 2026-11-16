@@ -23,6 +23,7 @@ class TripRecorder(private val sink: TripSink) {
     private var key = 0L
     private var startWall = 0L
     private var lastClock = -1L
+    private var lastWall = 0L
     private var lastSaveClock = 0L
     private var lastLat = 0.0
     private var lastLon = 0.0
@@ -48,11 +49,14 @@ class TripRecorder(private val sink: TripSink) {
     val altM: Double? get() = altEma
 
     fun onFix(clockMs: Long, wallMs: Long, lat: Double, lon: Double, altM: Double?, speedMps: Float) {
+        endIfStale(clockMs)
+        if (lastClock >= 0 && clockMs - lastClock > 5_000) grade.reset()
         val dtMs = if (lastClock >= 0) (clockMs - lastClock).coerceIn(0, 5_000) else 0L
         lastClock = clockMs
+        lastWall = wallMs
         lastLat = lat; lastLon = lon; lastSpeed = speedMps
         if (altM != null) altEma = altEma?.let { it * 0.8 + altM * 0.2 } ?: altM
-        val moving = speedMps > 0.5f
+        val moving = speedMps > MOVING_MPS
 
         when (segmenter.update(clockMs, speedMps)) {
             SegEvent.START -> startTrip(wallMs, clockMs)
@@ -101,6 +105,30 @@ class TripRecorder(private val sink: TripSink) {
         )
     }
 
+    /**
+     * Call periodically (about 1 Hz) even when no fixes arrive: a trip whose fixes stopped for
+     * [GAP_END_MS] (unit suspended at ACC-off, GPS lost in a garage) is ended at its last fix instead of
+     * silently swallowing the next drive.
+     */
+    fun onTick(clockMs: Long) = endIfStale(clockMs)
+
+    private fun endIfStale(clockMs: Long) {
+        if (segmenter.active && lastClock >= 0 && clockMs - lastClock > GAP_END_MS) {
+            segmenter.forceEnd(lastClock)
+            finishTrip(lastWall)
+        }
+    }
+
+    /** Forget all live state (after [stop]); the next fix starts from scratch. */
+    fun reset() {
+        lastClock = -1
+        altEma = null
+        gradePct = null
+        grade.reset()
+        harsh.reset()
+        pointBuf.clear(); idleBuf.clear(); idleMs = 0
+    }
+
     /** Close any open trip (service stopping / sandbox reset). */
     fun stop(clockMs: Long, wallMs: Long) {
         if (segmenter.forceEnd(clockMs)) finishTrip(wallMs)
@@ -142,5 +170,10 @@ class TripRecorder(private val sink: TripSink) {
             ),
             final,
         )
+    }
+
+    private companion object {
+        const val GAP_END_MS = 120_000L
+        const val MOVING_MPS = 0.8f // ~2.9 km/h; below this GPS speed is treated as stationary noise
     }
 }

@@ -25,6 +25,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.truckdash.MainActivity
 import com.truckdash.core.GForce
+import com.truckdash.core.GravityTracker
 import com.truckdash.core.Vec3
 import com.truckdash.data.AppGraph
 import kotlinx.coroutines.CoroutineScope
@@ -48,8 +49,11 @@ class DriveService : Service(), LocationListener, SensorEventListener {
     private lateinit var sm: SensorManager
 
     private var gravity: Vec3? = null
-    private var gravityLpf: Vec3? = null
+    private val gravityTracker = GravityTracker()
     private var useFusedSensors = false
+
+    /** wall time = elapsedRealtime + this. Anchored to GPS UTC when available: head units often boot with a wrong clock. */
+    private var wallOffsetMs = System.currentTimeMillis() - SystemClock.elapsedRealtime()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -57,9 +61,10 @@ class DriveService : Service(), LocationListener, SensorEventListener {
         super.onCreate()
         lm = getSystemService(LOCATION_SERVICE) as LocationManager
         sm = getSystemService(SENSOR_SERVICE) as SensorManager
-        startAsForeground()
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        // start() verifies the permission before starting us; on Android 14+ a location-type foreground
+        // service without it throws, so never let that escape and kill the app.
+        val ok = hasLocationPermission() && runCatching { startAsForeground() }.isSuccess
+        if (!ok) {
             stopSelf()
             return
         }
@@ -74,10 +79,13 @@ class DriveService : Service(), LocationListener, SensorEventListener {
         }
     }
 
+    private fun hasLocationPermission() = hasFineLocation(this)
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onDestroy() {
-        engine.stop(SystemClock.elapsedRealtime(), System.currentTimeMillis())
+        val now = SystemClock.elapsedRealtime()
+        engine.stop(now, now + wallOffsetMs)
         runCatching { lm.removeUpdates(this) }
         runCatching { sm.unregisterListener(this) }
         tickScope.cancel()
@@ -113,9 +121,11 @@ class DriveService : Service(), LocationListener, SensorEventListener {
     // ---------- location ----------
 
     override fun onLocationChanged(loc: Location) {
+        val clock = if (loc.elapsedRealtimeNanos > 0) loc.elapsedRealtimeNanos / 1_000_000 else SystemClock.elapsedRealtime()
+        if (loc.time > MIN_SANE_EPOCH_MS) wallOffsetMs = loc.time - clock // trust GPS UTC over the unit's clock
         engine.onLocation(
-            clockMs = SystemClock.elapsedRealtime(),
-            wallMs = System.currentTimeMillis(),
+            clockMs = clock,
+            wallMs = clock + wallOffsetMs,
             lat = loc.latitude,
             lon = loc.longitude,
             altM = if (loc.hasAltitude()) loc.altitude else null,
@@ -143,14 +153,13 @@ class DriveService : Service(), LocationListener, SensorEventListener {
             }
         } else {
             if (e.sensor.type != Sensor.TYPE_ACCELEROMETER) return
-            val gl = gravityLpf?.let { it * 0.98f + v * 0.02f } ?: v
-            gravityLpf = gl
-            gravity = gl
-            linear = v - gl
+            linear = gravityTracker.update(SystemClock.elapsedRealtime(), v) ?: return
+            gravity = gravityTracker.gravity
         }
         val grav = gravity ?: return
         val g = GForce.toVehicle(grav, linear, AppGraph.settings.value.mountYawDeg) ?: return
-        engine.onAcceleration(SystemClock.elapsedRealtime(), System.currentTimeMillis(), g)
+        val now = SystemClock.elapsedRealtime()
+        engine.onAcceleration(now, now + wallOffsetMs, g)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -180,7 +189,14 @@ class DriveService : Service(), LocationListener, SensorEventListener {
         private const val CHANNEL = "drive"
         private const val NOTIF_ID = 1
 
+        private const val MIN_SANE_EPOCH_MS = 1_577_836_800_000L // 2020-01-01
+
+        fun hasFineLocation(ctx: Context) =
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        /** Starts recording; silently does nothing without location permission (would crash on Android 14+). */
         fun start(ctx: Context) {
+            if (!hasFineLocation(ctx)) return
             ContextCompat.startForegroundService(ctx, Intent(ctx, DriveService::class.java))
         }
     }

@@ -15,7 +15,8 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 |---|---|
 | `Geo.kt` | unit factors (m/s→km/h, m→km), haversine, compass label |
 | `GForce.kt` | `Vec3`, `toVehicle(gravity, linear, yaw)` → `VehicleG` (long/lat/vert g in vehicle frame) |
-| `HarshEventDetector.kt` | hard accel/brake/corner detection with per-type cooldown |
+| `HarshEventDetector.kt` | hard accel/brake/corner: must be sustained 300 ms, then re-arm below 70 % of threshold |
+| `GravityTracker.kt` | accelerometer-only fallback: slow, steady-only gravity filter (sample-rate independent) |
 | `TripSegmenter.kt` | speed stream → START/END trip events (hold + idle timers) |
 | `ElevationGrade.kt` | `ElevationAccumulator` (hysteresis climb), `GradeEstimator` (% grade) |
 | `MaintenanceCalc.kt` / `FuelEconomy.kt` / `Analytics.kt` | maintenance status, fill-to-fill L/100 km, km per month etc. |
@@ -27,7 +28,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `repo/DashRepository.kt` | interface the UI uses (live state, settings, trips, odometer, maintenance, fuel + mutations) |
 | `engine/TripSink.kt` | output interface of the recorder (tripStarted/pointsAdded/eventAdded/tripUpdated) |
 | `engine/TripRecorder.kt` | trip state machine; holds stationary points back so trailing idle is dropped |
-| `engine/DriveEngine.kt` | fixes + g samples in → `StateFlow<LiveState>` + trips out; g smoothing (120 ms τ); GPS-loss tick |
+| `engine/DriveEngine.kt` | fixes + g samples in → `StateFlow<LiveState>` + trips out; fix-quality gating; g smoothing (120 ms τ); 1 Hz `tick` (GPS-loss flag, ends trips on fix gaps); `onDistance` feeds the odometer counter |
 
 ## shared/.../ui
 | File | Purpose |

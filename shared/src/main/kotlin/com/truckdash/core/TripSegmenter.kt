@@ -10,7 +10,7 @@ enum class SegEvent { NONE, START, END }
 class TripSegmenter(
     private val startMps: Float = 2.2f, // ~8 km/h
     private val startHoldMs: Long = 5_000,
-    private val stopMps: Float = 0.45f, // ~1.6 km/h
+    private val stopMps: Float = 0.8f, // ~2.9 km/h: above typical stationary GPS speed jitter
     private val endIdleMs: Long = 300_000,
 ) {
     var active = false

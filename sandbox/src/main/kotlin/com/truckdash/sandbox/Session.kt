@@ -19,7 +19,7 @@ class SandboxSession(
         fun create(seedHistory: Boolean = true, nowMs: Long = System.currentTimeMillis()): SandboxSession {
             val store = MemoryStore()
             if (seedHistory) seed(store, nowMs)
-            val engine = DriveEngine(store.newSink())
+            val engine = DriveEngine(store.newSink(), store::addDistance)
             return SandboxSession(store, engine, SimController(engine, nowMs, seed = 42), SandboxRepo(store, engine))
         }
 
@@ -40,7 +40,7 @@ class SandboxSession(
                 val dayStart = java.time.Instant.ofEpochMilli(nowMs - daysAgo * DAY).atZone(java.time.ZoneId.systemDefault())
                     .toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
                 val start = dayStart + (7 + rnd.nextInt(10)) * 3_600_000L + rnd.nextInt(60) * 60_000L
-                val engine = DriveEngine(store.newSink())
+                val engine = DriveEngine(store.newSink(), store::addDistance)
                 val c = SimController(
                     engine, start, seed = 100L + i,
                     startLat = 39.7 + rnd.nextDouble() * 0.2, startLon = -105.1 + rnd.nextDouble() * 0.2,

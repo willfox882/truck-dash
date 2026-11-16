@@ -13,6 +13,8 @@ class SettingsStore(ctx: Context) {
         Settings(
             odoBaseKm = loadOdoKm(),
             odoBaseSetMs = prefs.getLong("odoBaseSetMs", 0L),
+            distTotalM = prefs.getDouble("distTotalM"),
+            odoBaseTotalM = prefs.getDouble("odoBaseTotalM"),
             passengerMode = prefs.getBoolean("passengerMode", false),
             mountYawDeg = prefs.getFloat("mountYawDeg", 0f),
         ),
@@ -24,6 +26,9 @@ class SettingsStore(ctx: Context) {
         else -> 0.0
     }
 
+    private fun android.content.SharedPreferences.getDouble(key: String): Double =
+        if (contains(key)) java.lang.Double.longBitsToDouble(getLong(key, 0L)) else 0.0
+
     val flow: StateFlow<Settings> = _flow.asStateFlow()
     val value: Settings get() = _flow.value
 
@@ -34,10 +39,18 @@ class SettingsStore(ctx: Context) {
             .putFloat("odoBaseKm", s.odoBaseKm.toFloat())
             .remove("odoBaseMi")
             .putLong("odoBaseSetMs", s.odoBaseSetMs)
+            .putLong("distTotalM", java.lang.Double.doubleToRawLongBits(s.distTotalM))
+            .putLong("odoBaseTotalM", java.lang.Double.doubleToRawLongBits(s.odoBaseTotalM))
             .putBoolean("passengerMode", s.passengerMode)
             .putFloat("mountYawDeg", s.mountYawDeg)
             .apply()
     }
+
+    fun addDistance(deltaM: Double) = update { it.copy(distTotalM = it.distTotalM + deltaM) }
+
+    var distInitialised: Boolean
+        get() = prefs.getBoolean("distInit", false)
+        set(v) = prefs.edit().putBoolean("distInit", v).apply()
 
     var seeded: Boolean
         get() = prefs.getBoolean("seeded", false)

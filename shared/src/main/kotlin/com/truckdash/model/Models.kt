@@ -44,7 +44,12 @@ data class MaintItem(
 data class Settings(
     /** Odometer reading (km) the user entered, at [odoBaseSetMs]. Live odometer = base + trips since. */
     val odoBaseKm: Double = 0.0,
+    /** Wall time the odometer was set (0 = never set). */
     val odoBaseSetMs: Long = 0L,
+    /** Lifetime GPS-driven metres, maintained independently of trip rows (deleting a trip can't change it). */
+    val distTotalM: Double = 0.0,
+    /** [distTotalM] at the moment the odometer was set. Odometer = odoBaseKm + (distTotalM - odoBaseTotalM) / 1000. */
+    val odoBaseTotalM: Double = 0.0,
     /** Passenger mode disables the "parked only" lock on the Trips/Health tabs. */
     val passengerMode: Boolean = false,
     /** Extra yaw correction (deg) if the unit is mounted rotated so forward is not screen -Z. */

@@ -35,5 +35,7 @@ Sandbox network must allow `dl.google.com` + `maven.google.com` for Gradle/AGP/S
 - UI talks only to `DashRepository` (Room impl in `app/data`, in-memory impl in `sandbox`). Screens are stateless; `*Presenter` classes hold UI state.
 - Engine/recorder are single-threaded (main thread on Android); Room writes are serialised on a 1-thread dispatcher in `RoomTripSink`.
 - Trailing idle (the 5 min before a trip auto-ends) is NOT part of the trip; mid-trip stops are.
-- Odometer = user-entered base + sum(trip distance since base was set). There is no OBD odometer.
+- Odometer = user-entered base + (lifetime GPS distance counter − counter value when base was set). The counter is fed by `DriveEngine.onDistance`, NOT derived from trip rows. There is no OBD odometer.
+- Wall-clock timestamps come from GPS UTC (head units can boot with a wrong clock); durations/gaps use the monotonic clock.
+- Start the service only via `DriveService.start()` (checks location permission; a location FGS without it crashes on Android 14+).
 - G-forces: device -Z (into screen) is "forward"; mount tilt handled via gravity projection (`core/GForce.kt`); `mountYawDeg` setting exists for rotated mounts.
