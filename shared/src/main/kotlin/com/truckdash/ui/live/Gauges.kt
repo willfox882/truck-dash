@@ -29,11 +29,11 @@ import com.truckdash.ui.Dash
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
-private const val SCALE_MAX_MPH = 120f
+private const val SCALE_MAX_KMH = 180f
 
 @Composable
-fun SpeedGauge(speedMph: Float, hasFix: Boolean, modifier: Modifier = Modifier) {
-    val shown by animateFloatAsState(speedMph, tween(250), label = "speed")
+fun SpeedGauge(speedKmh: Float, hasFix: Boolean, modifier: Modifier = Modifier) {
+    val shown by animateFloatAsState(speedKmh, tween(250), label = "speed")
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val d = minOf(size.width, size.height)
@@ -41,14 +41,14 @@ fun SpeedGauge(speedMph: Float, hasFix: Boolean, modifier: Modifier = Modifier) 
             val arcSize = Size(d - stroke, d - stroke)
             val tl = Offset((size.width - d) / 2 + stroke / 2, (size.height - d) / 2 + stroke / 2)
             drawArc(Dash.track, 135f, 270f, false, tl, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-            val frac = (shown / SCALE_MAX_MPH).coerceIn(0f, 1f)
+            val frac = (shown / SCALE_MAX_KMH).coerceIn(0f, 1f)
             val color = if (frac < 0.5f) lerp(Dash.cyan, Dash.amber, frac * 2) else lerp(Dash.amber, Dash.red, (frac - 0.5f) * 2)
             if (frac > 0f) drawArc(color, 135f, 270f * frac, false, tl, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-            // ticks every 20 mph
+            // ticks every 20 km/h
             val c = center
             val rOuter = d / 2 - stroke * 1.4f
-            for (mph in 0..SCALE_MAX_MPH.toInt() step 20) {
-                val ang = 135f + 270f * mph / SCALE_MAX_MPH
+            for (kmh in 0..SCALE_MAX_KMH.toInt() step 20) {
+                val ang = 135f + 270f * kmh / SCALE_MAX_KMH
                 rotate(ang, c) {
                     drawLine(Dash.dim, Offset(c.x + rOuter, c.y), Offset(c.x + rOuter - stroke * 0.7f, c.y), strokeWidth = 4f)
                 }
@@ -59,7 +59,7 @@ fun SpeedGauge(speedMph: Float, hasFix: Boolean, modifier: Modifier = Modifier) 
                 if (hasFix) shown.roundToInt().toString() else "--",
                 color = Dash.text, fontSize = 100.sp, fontWeight = FontWeight.Bold,
             )
-            Text(if (hasFix) "MPH" else "NO GPS FIX", color = if (hasFix) Dash.dim else Dash.amber, fontSize = 20.sp)
+            Text(if (hasFix) "KM/H" else "NO GPS FIX", color = if (hasFix) Dash.dim else Dash.amber, fontSize = 20.sp)
         }
     }
 }

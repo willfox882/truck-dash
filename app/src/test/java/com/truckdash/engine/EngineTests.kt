@@ -32,7 +32,7 @@ class DriveEngineTest {
         var t = 0L
         repeat(60) { e.fix(t, 20f, 40.0 + it * 0.00018); t += 1_000 }
         assertTrue(e.state.value.recording)
-        assertEquals(44.7f, e.state.value.speedMph, 0.2f)
+        assertEquals(72f, e.state.value.speedKmh, 0.2f)
         repeat(360) { e.fix(t, 0f, 40.011); t += 1_000 }
 
         assertFalse(e.state.value.recording)

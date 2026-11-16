@@ -115,27 +115,30 @@ class ElevationTest {
     }
 }
 
-class MpgCalcTest {
-    private fun f(odo: Double, gal: Double, full: Boolean = true) =
-        FuelLog(dateMs = odo.toLong(), odometerMi = odo, gallons = gal, pricePerGal = 3.0, fullTank = full)
+class FuelEconomyTest {
+    private fun f(odoKm: Double, litres: Double, full: Boolean = true) =
+        FuelLog(dateMs = odoKm.toLong(), odometerKm = odoKm, litres = litres, pricePerLitre = 1.5, fullTank = full)
 
     @Test fun fillToFill() {
-        val s = MpgCalc.compute(listOf(f(1000.0, 15.0), f(1300.0, 15.0), f(1600.0, 20.0)))
+        // 1000 -> 1300 km used 30 L (10 L/100 km); 1300 -> 1600 km used 45 L (15 L/100 km)
+        val s = FuelEconomy.compute(listOf(f(1000.0, 55.0), f(1300.0, 30.0), f(1600.0, 45.0)))
         assertEquals(2, s.points.size)
-        assertEquals(20.0, s.points[0].mpg, 0.01)
-        assertEquals(15.0, s.points[1].mpg, 0.01)
-        assertEquals(600.0 / 35.0, s.avgMpg!!, 0.01)
-        assertEquals(3.0 * 35.0 / 600.0, s.costPerMile!!, 0.001)
+        assertEquals(10.0, s.points[0].lPer100, 0.01)
+        assertEquals(15.0, s.points[1].lPer100, 0.01)
+        assertEquals(75.0 / 600.0 * 100, s.avgLPer100!!, 0.01)
+        assertEquals(1.5 * 75.0 / 600.0, s.costPerKm!!, 0.0001)
+        assertEquals(12.5, s.avgLPer100!!, 0.01)
+        assertEquals(1.5 * 12.5, s.costPer100Km!!, 0.01)
     }
 
     @Test fun partialFillsFoldIntoNextFull() {
-        val s = MpgCalc.compute(listOf(f(0.0, 10.0), f(100.0, 5.0, full = false), f(200.0, 5.0)))
+        val s = FuelEconomy.compute(listOf(f(0.0, 40.0), f(200.0, 12.0, full = false), f(400.0, 28.0)))
         assertEquals(1, s.points.size)
-        assertEquals(20.0, s.points[0].mpg, 0.01)
+        assertEquals(10.0, s.points[0].lPer100, 0.01) // 40 L / 400 km
     }
 
     @Test fun needsTwoFulls() {
-        assertNull(MpgCalc.compute(listOf(f(0.0, 10.0))).avgMpg)
+        assertNull(FuelEconomy.compute(listOf(f(0.0, 40.0))).avgLPer100)
     }
 }
 
@@ -143,16 +146,16 @@ class MaintenanceCalcTest {
     private val day = 86_400_000L
 
     @Test fun okSoonOverdue() {
-        val item = MaintItem(name = "Oil", intervalMiles = 1000, lastOdoMi = 0.0, lastDateMs = 0)
+        val item = MaintItem(name = "Oil", intervalKm = 1000, lastOdoKm = 0.0, lastDateMs = 0)
         assertEquals(MaintLevel.OK, MaintenanceCalc.status(item, 500.0, 0).level)
         assertEquals(MaintLevel.SOON, MaintenanceCalc.status(item, 900.0, 0).level)
         val over = MaintenanceCalc.status(item, 1100.0, 0)
         assertEquals(MaintLevel.OVERDUE, over.level)
-        assertEquals(-100.0, over.milesLeft!!, 0.01)
+        assertEquals(-100.0, over.kmLeft!!, 0.01)
     }
 
     @Test fun worstOfMilesAndDays() {
-        val item = MaintItem(name = "X", intervalMiles = 10_000, intervalDays = 100, lastOdoMi = 0.0, lastDateMs = 0)
+        val item = MaintItem(name = "X", intervalKm = 10_000, intervalDays = 100, lastOdoKm = 0.0, lastDateMs = 0)
         val st = MaintenanceCalc.status(item, 100.0, 120 * day)
         assertEquals(MaintLevel.OVERDUE, st.level)
         assertEquals(-20L, st.daysLeft)
@@ -164,11 +167,11 @@ class AnalyticsTest {
         val z = ZoneOffset.UTC
         fun ms(y: Int, m: Int, d: Int) = java.time.LocalDate.of(y, m, d).atStartOfDay(z).toInstant().toEpochMilli()
         val trips = listOf(
-            Trip(startMs = ms(2026, 11, 2), distanceM = 1609.344 * 10),
-            Trip(startMs = ms(2026, 11, 9), distanceM = 1609.344 * 5),
-            Trip(startMs = ms(2026, 9, 20), distanceM = 1609.344 * 7),
+            Trip(startMs = ms(2026, 11, 2), distanceM = 10_000.0),
+            Trip(startMs = ms(2026, 11, 9), distanceM = 5_000.0),
+            Trip(startMs = ms(2026, 9, 20), distanceM = 7_000.0),
         )
-        val r = Analytics.milesByMonth(trips, ms(2026, 11, 15), months = 3, zone = z)
+        val r = Analytics.kmByMonth(trips, ms(2026, 11, 15), months = 3, zone = z)
         assertEquals(listOf(YearMonth.of(2026, 9), YearMonth.of(2026, 10), YearMonth.of(2026, 11)), r.map { it.first })
         assertEquals(7.0, r[0].second, 0.01)
         assertEquals(0.0, r[1].second, 0.01)

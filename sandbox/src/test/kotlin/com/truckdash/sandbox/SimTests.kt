@@ -23,7 +23,7 @@ class SimTests {
         assertEquals(1, trips.size)
         val t = trips[0]
         assertTrue("trip should end", t.endMs != null)
-        assertTrue("distance ${t.distanceM}", t.distanceM * Geo.M_TO_MI in 0.8..3.0)
+        assertTrue("distance ${t.distanceM}", t.distanceM * Geo.M_TO_KM in 1.5..5.0)
         assertTrue(t.stoppedMs > 20_000)
         assertFalse(engine.state.value.recording)
         assertTrue(store.detail(t.id)!!.points.size > 100)
@@ -32,7 +32,7 @@ class SimTests {
     @Test fun highwayClimbsAndCruises() {
         val (store, _) = run(Scenarios.highway)
         val t = store.tripsFlow.value.single()
-        assertEquals(72.0, t.maxSpeedMps / 0.44704, 3.0)
+        assertEquals(110.0, t.maxSpeedMps * 3.6, 4.0)
         assertTrue("elev gain ${t.elevGainM}", t.elevGainM > 20f)
     }
 
@@ -49,7 +49,7 @@ class SimTests {
         val (store, engine) = run(Scenarios.parked.let { Scenario(it.name, it.blurb, listOf(Seg(120.0, 0.0))) })
         assertTrue(store.tripsFlow.value.isEmpty())
         assertTrue(engine.state.value.hasFix)
-        assertEquals(0f, engine.state.value.speedMph, 0.01f)
+        assertEquals(0f, engine.state.value.speedKmh, 0.01f)
     }
 
     @Test fun seededSessionHasHistory() {

@@ -37,15 +37,15 @@ class DriveEngine(sink: TripSink) {
         _state.update {
             it.copy(
                 hasFix = true,
-                speedMph = (speed * Geo.MPS_TO_MPH).toFloat(),
+                speedKmh = (speed * Geo.MPS_TO_KMH).toFloat(),
                 bearingDeg = if (bearingDeg != null && speed > 1f) bearingDeg else it.bearingDeg,
-                altFt = recorder.altM?.times(Geo.M_TO_FT),
+                altM = recorder.altM,
                 lat = lat, lon = lon, accuracyM = accuracyM,
                 gradePct = recorder.gradePct ?: it.gradePct,
                 recording = recorder.active,
-                tripMiles = recorder.distM * Geo.M_TO_MI,
+                tripKm = recorder.distM * Geo.M_TO_KM,
                 tripMovingSec = recorder.movingMs / 1000,
-                tripMaxMph = (recorder.maxMps * Geo.MPS_TO_MPH).toFloat(),
+                tripMaxKmh = (recorder.maxMps * Geo.MPS_TO_KMH).toFloat(),
             )
         }
     }
@@ -71,11 +71,11 @@ class DriveEngine(sink: TripSink) {
     /** Call about once a second: marks the GPS fix as lost after 5 s of silence. */
     fun tick(clockMs: Long) {
         if (lastFixClock >= 0 && clockMs - lastFixClock > 5_000 && _state.value.hasFix) {
-            _state.update { it.copy(hasFix = false, speedMph = 0f) }
+            _state.update { it.copy(hasFix = false, speedKmh = 0f) }
         }
     }
 
-    fun onProviderDisabled() = _state.update { it.copy(hasFix = false, speedMph = 0f) }
+    fun onProviderDisabled() = _state.update { it.copy(hasFix = false, speedKmh = 0f) }
 
     /** Ends any open trip and clears live data. */
     fun stop(clockMs: Long, wallMs: Long) {

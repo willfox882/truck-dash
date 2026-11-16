@@ -28,10 +28,10 @@ class RoomDashRepository(
     override val trips: Flow<List<Trip>> = db.tripDao().observeTrips().map { l -> l.map { it.toModel() } }
 
     /** Odometer = user-entered base + GPS-recorded trip distance since it was set. */
-    override val odometerMi: Flow<Double> = store.flow
-        .distinctUntilChangedBy { it.odoBaseSetMs to it.odoBaseMi }
+    override val odometerKm: Flow<Double> = store.flow
+        .distinctUntilChangedBy { it.odoBaseSetMs to it.odoBaseKm }
         .flatMapLatest { s ->
-            db.tripDao().observeDistanceSince(s.odoBaseSetMs).map { s.odoBaseMi + it * Geo.M_TO_MI }
+            db.tripDao().observeDistanceSince(s.odoBaseSetMs).map { s.odoBaseKm + it * Geo.M_TO_KM }
         }
 
     override val maintenance: Flow<List<MaintItem>> = db.maintDao().observeAll().map { l -> l.map { it.toModel() } }
@@ -45,8 +45,8 @@ class RoomDashRepository(
 
     override suspend fun deleteTrip(id: Long) = db.tripDao().deleteTrip(id)
 
-    override fun setOdometer(mi: Double) =
-        store.update { it.copy(odoBaseMi = mi, odoBaseSetMs = System.currentTimeMillis()) }
+    override fun setOdometer(km: Double) =
+        store.update { it.copy(odoBaseKm = km, odoBaseSetMs = System.currentTimeMillis()) }
 
     override fun setPassengerMode(on: Boolean) = store.update { it.copy(passengerMode = on) }
 

@@ -7,7 +7,7 @@ import kotlin.math.min
 /** One scripted driving segment: hold [mph] for [durS] seconds while turning [yawDegS] (+ = right) on [gradePct]. */
 data class Seg(
     val durS: Double,
-    val mph: Double,
+    val kmh: Double,
     val yawDegS: Double = 0.0,
     val gradePct: Double = 0.0,
     val accel: Double = 2.2, // m/s^2 limit when speeding up
@@ -18,38 +18,38 @@ class Scenario(val name: String, val blurb: String, val segs: List<Seg>) {
     val totalS: Double get() = segs.sumOf { it.durS }
 }
 
-private fun turn(deg: Double, mph: Double, durS: Double = 6.0) = Seg(durS, mph, yawDegS = deg / durS)
+private fun turn(deg: Double, kmh: Double, durS: Double = 6.0) = Seg(durS, kmh, yawDegS = deg / durS)
 
 /** End-of-drive stop long enough (> 5 min) for the recorder to close the trip. */
 private val parkFor = Seg(330.0, 0.0)
 
 object Scenarios {
     val cityLoop = Scenario(
-        "City loop", "Stop lights, turns, a couple of small hills.",
+        "City loop", "Stop lights, turns, 50 km/h streets, a couple of small hills.",
         listOf(
-            Seg(15.0, 25.0), turn(90.0, 15.0), Seg(25.0, 35.0), Seg(10.0, 0.0), Seg(12.0, 0.0),
-            Seg(20.0, 30.0), turn(-90.0, 15.0), Seg(30.0, 40.0, gradePct = 2.0), Seg(8.0, 0.0), Seg(10.0, 0.0),
-            Seg(25.0, 35.0), turn(90.0, 12.0), Seg(20.0, 30.0), turn(90.0, 12.0), Seg(25.0, 35.0, gradePct = -2.0),
+            Seg(15.0, 40.0), turn(90.0, 25.0), Seg(25.0, 50.0), Seg(10.0, 0.0), Seg(12.0, 0.0),
+            Seg(20.0, 50.0), turn(-90.0, 25.0), Seg(30.0, 60.0, gradePct = 2.0), Seg(8.0, 0.0), Seg(10.0, 0.0),
+            Seg(25.0, 50.0), turn(90.0, 20.0), Seg(20.0, 50.0), turn(90.0, 20.0), Seg(25.0, 50.0, gradePct = -2.0),
             Seg(10.0, 0.0), parkFor,
         ),
     )
 
     val highway = Scenario(
-        "Highway climb", "On-ramp, 72 mph cruise, a 5% climb and a 6% descent.",
+        "Highway climb", "On-ramp, 110 km/h cruise, a 5% climb and a 6% descent.",
         listOf(
-            Seg(25.0, 45.0, accel = 2.0), Seg(20.0, 65.0), Seg(150.0, 72.0),
-            Seg(15.0, 72.0, yawDegS = 1.5), Seg(15.0, 72.0, yawDegS = -1.5),
-            Seg(60.0, 68.0, gradePct = 5.0), Seg(40.0, 70.0), Seg(60.0, 72.0, gradePct = -6.0),
-            Seg(40.0, 72.0), Seg(20.0, 45.0), Seg(15.0, 25.0, yawDegS = 6.0), Seg(15.0, 0.0), parkFor,
+            Seg(25.0, 70.0, accel = 2.0), Seg(20.0, 100.0), Seg(150.0, 110.0),
+            Seg(15.0, 110.0, yawDegS = 1.5), Seg(15.0, 110.0, yawDegS = -1.5),
+            Seg(60.0, 105.0, gradePct = 5.0), Seg(40.0, 110.0), Seg(60.0, 110.0, gradePct = -6.0),
+            Seg(40.0, 110.0), Seg(20.0, 70.0), Seg(15.0, 40.0, yawDegS = 6.0), Seg(15.0, 0.0), parkFor,
         ),
     )
 
     val hardEvents = Scenario(
         "Hard-driving demo", "Hard brake, hard launch and sharp corners to light up the G-ball and event markers.",
         listOf(
-            Seg(20.0, 40.0), Seg(3.0, 8.0, brake = 7.5), Seg(6.0, 8.0), Seg(5.0, 45.0, accel = 4.5),
-            Seg(8.0, 35.0), Seg(3.0, 30.0, yawDegS = 25.0), Seg(5.0, 30.0), Seg(3.0, 30.0, yawDegS = -25.0),
-            Seg(10.0, 35.0), Seg(15.0, 0.0), parkFor,
+            Seg(20.0, 65.0), Seg(3.0, 13.0, brake = 7.5), Seg(6.0, 13.0), Seg(5.0, 70.0, accel = 4.5),
+            Seg(8.0, 55.0), Seg(3.0, 50.0, yawDegS = 25.0), Seg(5.0, 50.0), Seg(3.0, 50.0, yawDegS = -25.0),
+            Seg(10.0, 55.0), Seg(15.0, 0.0), parkFor,
         ),
     )
 

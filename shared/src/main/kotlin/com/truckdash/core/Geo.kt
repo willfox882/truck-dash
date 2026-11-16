@@ -6,9 +6,8 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 object Geo {
-    const val MPS_TO_MPH = 2.2369362920544
-    const val M_TO_MI = 0.000621371192237
-    const val M_TO_FT = 3.280839895
+    const val MPS_TO_KMH = 3.6
+    const val M_TO_KM = 0.001
     const val STD_G = 9.80665
 
     fun haversineM(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

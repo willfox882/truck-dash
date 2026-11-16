@@ -1,7 +1,7 @@
 package com.truckdash.ui.health
 
 import com.truckdash.core.FuelStats
-import com.truckdash.core.MpgCalc
+import com.truckdash.core.FuelEconomy
 import com.truckdash.model.FuelLog
 import com.truckdash.model.MaintItem
 import com.truckdash.model.Settings
@@ -16,8 +16,8 @@ import kotlinx.coroutines.launch
 class HealthPresenter(private val repo: DashRepository, private val scope: CoroutineScope) {
     val settings: StateFlow<Settings> = repo.settings
 
-    val odometerMi: StateFlow<Double> =
-        repo.odometerMi.stateIn(scope, SharingStarted.Eagerly, repo.settings.value.odoBaseMi)
+    val odometerKm: StateFlow<Double> =
+        repo.odometerKm.stateIn(scope, SharingStarted.Eagerly, repo.settings.value.odoBaseKm)
 
     val maintenance: StateFlow<List<MaintItem>> =
         repo.maintenance.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -25,19 +25,19 @@ class HealthPresenter(private val repo: DashRepository, private val scope: Corou
     val fuelLogs: StateFlow<List<FuelLog>> =
         repo.fuelLogs.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
-    val fuelStats: StateFlow<FuelStats> = fuelLogs.map { MpgCalc.compute(it) }
-        .stateIn(scope, SharingStarted.Eagerly, MpgCalc.compute(emptyList()))
+    val fuelStats: StateFlow<FuelStats> = fuelLogs.map { FuelEconomy.compute(it) }
+        .stateIn(scope, SharingStarted.Eagerly, FuelEconomy.compute(emptyList()))
 
-    fun setOdometer(mi: Double) = repo.setOdometer(mi)
+    fun setOdometer(km: Double) = repo.setOdometer(km)
 
     fun setPassengerMode(on: Boolean) = repo.setPassengerMode(on)
 
-    fun addFuel(gallons: Double, price: Double, odoMi: Double, full: Boolean) {
+    fun addFuel(litres: Double, pricePerLitre: Double, odoKm: Double, full: Boolean) {
         scope.launch {
             repo.addFuel(
                 FuelLog(
-                    dateMs = System.currentTimeMillis(), odometerMi = odoMi,
-                    gallons = gallons, pricePerGal = price, fullTank = full,
+                    dateMs = System.currentTimeMillis(), odometerKm = odoKm,
+                    litres = litres, pricePerLitre = pricePerLitre, fullTank = full,
                 ),
             )
         }
@@ -47,12 +47,12 @@ class HealthPresenter(private val repo: DashRepository, private val scope: Corou
         scope.launch { repo.deleteFuel(e) }
     }
 
-    fun addMaintenance(name: String, miles: Int?, days: Int?) {
+    fun addMaintenance(name: String, km: Int?, days: Int?) {
         scope.launch {
             repo.addMaintenance(
                 MaintItem(
-                    name = name, intervalMiles = miles, intervalDays = days,
-                    lastOdoMi = odometerMi.value, lastDateMs = System.currentTimeMillis(),
+                    name = name, intervalKm = km, intervalDays = days,
+                    lastOdoKm = odometerKm.value, lastDateMs = System.currentTimeMillis(),
                 ),
             )
         }
@@ -60,7 +60,7 @@ class HealthPresenter(private val repo: DashRepository, private val scope: Corou
 
     fun markDone(item: MaintItem) {
         scope.launch {
-            repo.updateMaintenance(item.copy(lastOdoMi = odometerMi.value, lastDateMs = System.currentTimeMillis()))
+            repo.updateMaintenance(item.copy(lastOdoKm = odometerKm.value, lastDateMs = System.currentTimeMillis()))
         }
     }
 

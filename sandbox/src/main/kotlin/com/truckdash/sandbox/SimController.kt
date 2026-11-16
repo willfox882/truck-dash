@@ -41,7 +41,7 @@ class SimController(
     @Volatile var paused = false
     @Volatile var speedFactor = 1.0
     @Volatile var manual = false
-    @Volatile var manualMph = 0.0
+    @Volatile var manualKmh = 0.0
     @Volatile var manualYawDegS = 0.0
     @Volatile var manualGradePct = 0.0
     @Volatile private var gpsLossUntilClock = 0L
@@ -89,7 +89,7 @@ class SimController(
 
     private fun currentSeg(): Seg {
         impulse?.let { if (clockMs < it.untilClockMs) return it.seg else impulse = null }
-        if (manual) return Seg(1.0, manualMph, manualYawDegS, manualGradePct, accel = 2.5, brake = 4.0)
+        if (manual) return Seg(1.0, manualKmh, manualYawDegS, manualGradePct, accel = 2.5, brake = 4.0)
         val s = scenario
         if (s != null && segIdx < s.segs.size) return s.segs[segIdx]
         return IDLE
@@ -97,7 +97,7 @@ class SimController(
 
     private fun step() {
         val seg = currentSeg()
-        sim.advance(STEP_S, seg.mph * MPH_TO_MPS, seg.yawDegS, seg.gradePct, seg.accel, seg.brake)
+        sim.advance(STEP_S, seg.kmh / 3.6, seg.yawDegS, seg.gradePct, seg.accel, seg.brake)
 
         // advance scenario clock
         val s = scenario
@@ -140,7 +140,6 @@ class SimController(
         const val STEP_MS = 50L
         const val STEP_S = 0.05
         const val FIX_EVERY = 20L // 1 Hz GPS
-        const val MPH_TO_MPS = 0.44704
         val IDLE = Seg(1.0, 0.0)
     }
 }

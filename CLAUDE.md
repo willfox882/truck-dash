@@ -26,9 +26,9 @@ Sandbox network must allow `dl.google.com` + `maven.google.com` for Gradle/AGP/S
 - **Put logic in `shared/.../core` or `engine` as pure Kotlin** (no Android imports) and unit-test it in `app/src/test/.../core`. Services/UI stay thin.
 - Dark-only UI (`ui/Theme.kt` → `Dash` palette). Portrait only. Big touch targets (head unit).
 - Safety: Trips/Health tabs lock above 3 mph unless Passenger mode (`ui/TruckDashRoot.kt`). Keep that rule for any dense UI.
-- Room: schema exported to `app/schemas/`. Any entity change → bump `version` and add a migration (never destructive).
+- Room: schema exported to `app/schemas/`. Any entity change → bump `version` and add a migration (never destructive). v1→v2 (imperial→metric) lives in `data/Migrations.kt` and was verified against real SQLite; do the same for future ones.
 - Version catalog: `gradle/libs.versions.toml`. Don't hard-code versions in `build.gradle.kts`.
-- Units are mph / miles / feet / gallons internally in UI; raw storage in metres & m/s (`Geo` has the factors).
+- **Units (owner is in Canada — METRIC ONLY, never imperial):** speed km/h, distance km, altitude m, fuel litres and **L/100 km** (price $/L, cost per 100 km), oil in litres, **pressures in kPa** (never psi), temperature °C. Raw trip storage stays SI (metres, m/s); fuel/odometer/maintenance are stored in km / litres. `Geo` has the factors (`MPS_TO_KMH`, `M_TO_KM`). Any new feature (tire pressure, oil pressure, coolant temp…) must follow this.
 
 ## Key design facts
 - `DriveEngine` (shared) is the brain: feed it GPS fixes + vehicle-frame g; it keeps `LiveState` and records trips through a `TripSink`. `DriveService` (Android) and `SimController` (sandbox) are just two feeders.

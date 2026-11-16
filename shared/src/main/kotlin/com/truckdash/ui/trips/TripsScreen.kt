@@ -73,14 +73,14 @@ private fun TripsList(vm: TripsPresenter, modifier: Modifier) {
         item { Text("Trips", color = Dash.text, fontSize = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp)) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("7 DAYS", "%.0f".format(sum.weekMiles), "miles", Modifier.weight(1f))
-                StatTile("THIS MONTH", "%.0f".format(sum.monthMiles), "miles", Modifier.weight(1f))
-                StatTile("ALL TIME", "%.0f".format(sum.totalMiles), "miles", Modifier.weight(1f))
+                StatTile("7 DAYS", "%.0f".format(sum.weekKm), "km", Modifier.weight(1f))
+                StatTile("THIS MONTH", "%.0f".format(sum.monthKm), "km", Modifier.weight(1f))
+                StatTile("ALL TIME", "%.0f".format(sum.totalKm), "km", Modifier.weight(1f))
             }
         }
         item {
             DashCard(Modifier.fillMaxWidth()) {
-                Text("MILES PER MONTH", color = Dash.dim, fontSize = 13.sp)
+                Text("KM PER MONTH", color = Dash.dim, fontSize = 13.sp)
                 Box(Modifier.fillMaxWidth().height(120.dp).padding(top = 8.dp)) {
                     BarChart(sum.monthly.map { it.second.toFloat() }, Dash.cyan)
                 }
@@ -105,8 +105,8 @@ private fun TripRow(t: Trip, onClick: () -> Unit) {
                 Text(fmtDate(t.startMs), color = Dash.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 val dur = ((t.endMs ?: System.currentTimeMillis()) - t.startMs) / 1000
                 Text(
-                    "%.1f mi  •  ${formatDurationShort(dur)}  •  max ${(t.maxSpeedMps * Geo.MPS_TO_MPH).roundToInt()} mph"
-                        .format(t.distanceM * Geo.M_TO_MI) + if (t.endMs == null) "  • in progress" else "",
+                    "%.1f km  •  ${formatDurationShort(dur)}  •  max ${(t.maxSpeedMps * Geo.MPS_TO_KMH).roundToInt()} km/h"
+                        .format(t.distanceM * Geo.M_TO_KM) + if (t.endMs == null) "  • in progress" else "",
                     color = Dash.dim, fontSize = 14.sp,
                 )
             }
@@ -120,8 +120,8 @@ private fun TripRow(t: Trip, onClick: () -> Unit) {
 private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> Unit, modifier: Modifier) {
     var confirm by remember { mutableStateOf(false) }
     val t = d.trip
-    val speeds = d.points.map { (it.speedMps * Geo.MPS_TO_MPH).toFloat() }
-    val alts = d.points.map { (it.altM * Geo.M_TO_FT).toFloat() }
+    val speeds = d.points.map { (it.speedMps * Geo.MPS_TO_KMH).toFloat() }
+    val alts = d.points.map { it.altM.toFloat() }
     val route = d.points.map { GeoPt(it.lat, it.lon) }
     val markers = d.events.map {
         RouteMarker(
@@ -147,16 +147,16 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("DISTANCE", "%.1f".format(t.distanceM * Geo.M_TO_MI), "miles", Modifier.weight(1f))
+                StatTile("DISTANCE", "%.1f".format(t.distanceM * Geo.M_TO_KM), "km", Modifier.weight(1f))
                 StatTile("MOVING", formatClock(t.movingMs / 1000).first, formatClock(t.movingMs / 1000).second, Modifier.weight(1f))
                 StatTile("STOPPED", formatClock(t.stoppedMs / 1000).first, formatClock(t.stoppedMs / 1000).second, Modifier.weight(1f))
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("AVG", Analytics.avgMovingMph(t)?.roundToInt()?.toString() ?: "--", "mph", Modifier.weight(1f))
-                StatTile("MAX", (t.maxSpeedMps * Geo.MPS_TO_MPH).roundToInt().toString(), "mph", Modifier.weight(1f))
-                StatTile("CLIMB", (t.elevGainM * Geo.M_TO_FT).roundToInt().toString(), "ft", Modifier.weight(1f))
+                StatTile("AVG", Analytics.avgMovingKmh(t)?.roundToInt()?.toString() ?: "--", "km/h", Modifier.weight(1f))
+                StatTile("MAX", (t.maxSpeedMps * Geo.MPS_TO_KMH).roundToInt().toString(), "km/h", Modifier.weight(1f))
+                StatTile("CLIMB", t.elevGainM.roundToInt().toString(), "m", Modifier.weight(1f))
             }
         }
         item {
@@ -171,14 +171,14 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
         }
         item {
             DashCard(Modifier.fillMaxWidth()) {
-                Text("SPEED (mph)  ·  peak ${speeds.maxOrNull()?.roundToInt() ?: 0}", color = Dash.dim, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 6.dp)) { LineChart(speeds, Dash.cyan, minOverride = 0f, minSpan = 20f) }
+                Text("SPEED (km/h)  ·  peak ${speeds.maxOrNull()?.roundToInt() ?: 0}", color = Dash.dim, fontSize = 13.sp)
+                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 6.dp)) { LineChart(speeds, Dash.cyan, minOverride = 0f, minSpan = 30f) }
             }
         }
         item {
             DashCard(Modifier.fillMaxWidth()) {
-                Text("ELEVATION (ft)  ·  ${alts.minOrNull()?.roundToInt() ?: 0} to ${alts.maxOrNull()?.roundToInt() ?: 0}", color = Dash.dim, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 6.dp)) { LineChart(alts, Dash.green, minSpan = 40f) }
+                Text("ELEVATION (m)  ·  ${alts.minOrNull()?.roundToInt() ?: 0} to ${alts.maxOrNull()?.roundToInt() ?: 0}", color = Dash.dim, fontSize = 13.sp)
+                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 6.dp)) { LineChart(alts, Dash.green, minSpan = 12f) }
             }
         }
         item {

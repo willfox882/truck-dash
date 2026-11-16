@@ -39,8 +39,8 @@ import kotlin.math.roundToInt
 
 enum class DashTab(val label: String) { Live("LIVE"), Trips("TRIPS"), Health("HEALTH") }
 
-/** Speed (mph) above which Trips/Health are locked (unless passenger mode). */
-const val LOCK_MPH = 3f
+/** Speed (km/h) above which Trips/Health are locked (unless passenger mode). */
+const val LOCK_KMH = 5f
 
 /** Platform hook for the system back button. Android supplies a BackHandler; default is a no-op. */
 val LocalBackHook = staticCompositionLocalOf<@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit> {
@@ -73,7 +73,7 @@ fun TruckDashRoot(
     val live by repo.live.collectAsState()
     val settings by repo.settings.collectAsState()
     var tab by remember { mutableStateOf(initialTab) }
-    val locked = live.speedMph > LOCK_MPH && !settings.passengerMode
+    val locked = live.speedKmh > LOCK_KMH && !settings.passengerMode
 
     LaunchedEffect(locked) { if (locked) tab = DashTab.Live }
     LaunchedEffect(initialTripId) { initialTripId?.let { trips.open(it) } }
@@ -83,8 +83,8 @@ fun TruckDashRoot(
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
                     DashTab.Live -> LiveScreen(live)
-                    DashTab.Trips -> if (locked) ParkedOnly(live.speedMph) else TripsScreen(trips)
-                    DashTab.Health -> if (locked) ParkedOnly(live.speedMph) else HealthScreen(health)
+                    DashTab.Trips -> if (locked) ParkedOnly(live.speedKmh) else TripsScreen(trips)
+                    DashTab.Health -> if (locked) ParkedOnly(live.speedKmh) else HealthScreen(health)
                 }
             }
             Row(Modifier.fillMaxWidth().height(64.dp)) {
@@ -113,14 +113,14 @@ fun TruckDashRoot(
 }
 
 @Composable
-private fun ParkedOnly(mph: Float) {
+private fun ParkedOnly(kmh: Float) {
     Column(
         Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("PARKED ONLY", color = Dash.amber, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-        Text("${mph.roundToInt()} mph", color = Dash.text, fontSize = 22.sp, modifier = Modifier.padding(top = 8.dp))
+        Text("${kmh.roundToInt()} km/h", color = Dash.text, fontSize = 22.sp, modifier = Modifier.padding(top = 8.dp))
         Text(
             "Stop to view this screen, or enable Passenger mode in Health settings.",
             color = Dash.dim, fontSize = 16.sp, modifier = Modifier.padding(top = 12.dp),

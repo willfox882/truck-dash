@@ -44,7 +44,7 @@ interface FuelDao {
     @Insert suspend fun insert(e: FuelLogEntity)
     @Delete suspend fun delete(e: FuelLogEntity)
 
-    @Query("SELECT * FROM fuel_logs ORDER BY odometerMi DESC")
+    @Query("SELECT * FROM fuel_logs ORDER BY odometerKm DESC")
     fun observeAll(): Flow<List<FuelLogEntity>>
 }
 

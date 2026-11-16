@@ -18,7 +18,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `HarshEventDetector.kt` | hard accel/brake/corner detection with per-type cooldown |
 | `TripSegmenter.kt` | speed stream → START/END trip events (hold + idle timers) |
 | `ElevationGrade.kt` | `ElevationAccumulator` (hysteresis climb), `GradeEstimator` (% grade) |
-| `MaintenanceCalc.kt` / `MpgCalc.kt` / `Analytics.kt` | maintenance status, fill-to-fill MPG, miles per month etc. |
+| `MaintenanceCalc.kt` / `FuelEconomy.kt` / `Analytics.kt` | maintenance status, fill-to-fill L/100 km, km per month etc. |
 
 ## shared/.../model + repo + engine  (tests: `app/src/test/.../engine/EngineTests.kt`)
 | File | Purpose |
@@ -45,8 +45,8 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `MainActivity.kt`, `TruckDashApplication.kt` | permissions, keep-awake, immersive, back hook; `AppGraph.init` |
 | `service/DriveService.kt` | thin feeder: Location + Sensor callbacks → `DriveEngine`; notification; 1 s `tick` |
 | `service/BootReceiver.kt` | best-effort autostart |
-| `data/Entities.kt`, `Daos.kt`, `AppDatabase.kt` | Room (v1, schema in `app/schemas`) |
-| `data/Mappers.kt` | entity ↔ model |
+| `data/Entities.kt`, `Daos.kt`, `AppDatabase.kt` | Room (v2, schema in `app/schemas`) |
+| `data/Mappers.kt`, `data/Migrations.kt` | entity ↔ model; Room v1→v2 (imperial→metric) migration |
 | `data/RoomTripSink.kt`, `RoomDashRepository.kt` | engine output → Room; repository over Room + `SettingsStore` |
 | `data/SettingsStore.kt`, `AppGraph.kt` | prefs-backed settings; service locator + first-run maintenance seeding |
 

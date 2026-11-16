@@ -8,9 +8,9 @@ enum class SegEvent { NONE, START, END }
  * Times are any monotonic millisecond clock.
  */
 class TripSegmenter(
-    private val startMps: Float = 2.2f, // ~5 mph
+    private val startMps: Float = 2.2f, // ~8 km/h
     private val startHoldMs: Long = 5_000,
-    private val stopMps: Float = 0.45f, // ~1 mph
+    private val stopMps: Float = 0.45f, // ~1.6 km/h
     private val endIdleMs: Long = 300_000,
 ) {
     var active = false

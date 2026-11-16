@@ -111,7 +111,7 @@ private fun ControlPanel(session: SandboxSession, onReset: () -> Unit) {
     var factor by remember(session) { mutableStateOf(1.0) }
     var paused by remember(session) { mutableStateOf(false) }
     var manual by remember(session) { mutableStateOf(false) }
-    var mph by remember(session) { mutableStateOf(0f) }
+    var kmh by remember(session) { mutableStateOf(0f) }
     var yaw by remember(session) { mutableStateOf(0f) }
     var grade by remember(session) { mutableStateOf(0f) }
 
@@ -166,18 +166,18 @@ private fun ControlPanel(session: SandboxSession, onReset: () -> Unit) {
             Switch(manual, onCheckedChange = { manual = it; c.manual = it; if (it) c.stopScenario() })
             Text("  Drive with sliders", color = Dash.text, fontSize = 13.sp)
         }
-        LabeledSlider("Target speed", "${mph.roundToInt()} mph", mph, 0f..100f) { mph = it; c.manualMph = it.toDouble() }
+        LabeledSlider("Target speed", "${kmh.roundToInt()} km/h", kmh, 0f..160f) { kmh = it; c.manualKmh = it.toDouble() }
         LabeledSlider("Turn rate", "${yaw.roundToInt()} °/s (+ right)", yaw, -30f..30f) { yaw = it; c.manualYawDegS = it.toDouble() }
         LabeledSlider("Road grade", "%.1f %%".format(grade), grade, -10f..10f) { grade = it; c.manualGradePct = it.toDouble() }
 
         Section("Events")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { c.impulse(Seg(3.0, 0.0, brake = 8.0)) }) { Text("Hard brake") }
-            OutlinedButton(onClick = { c.impulse(Seg(4.0, 80.0, accel = 4.5)) }) { Text("Floor it") }
+            OutlinedButton(onClick = { c.impulse(Seg(4.0, 130.0, accel = 4.5)) }) { Text("Floor it") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { c.impulse(Seg(3.0, 30.0, yawDegS = 25.0)) }) { Text("Sharp right") }
-            OutlinedButton(onClick = { c.impulse(Seg(3.0, 30.0, yawDegS = -25.0)) }) { Text("Sharp left") }
+            OutlinedButton(onClick = { c.impulse(Seg(3.0, 50.0, yawDegS = 25.0)) }) { Text("Sharp right") }
+            OutlinedButton(onClick = { c.impulse(Seg(3.0, 50.0, yawDegS = -25.0)) }) { Text("Sharp left") }
         }
         OutlinedButton(onClick = { c.gpsDropout(10) }) { Text("GPS dropout 10 s") }
 
@@ -190,8 +190,8 @@ private fun ControlPanel(session: SandboxSession, onReset: () -> Unit) {
 
         HorizontalDivider(color = Dash.track)
         Text(
-            "Live: %.0f mph · long %+.2f g · lat %+.2f g · REC %s".format(
-                live.speedMph, live.longG, live.latG, if (live.recording) "on" else "off",
+            "Live: %.0f km/h · long %+.2f g · lat %+.2f g · REC %s".format(
+                live.speedKmh, live.longG, live.latG, if (live.recording) "on" else "off",
             ),
             color = ColorMuted, fontSize = 11.sp,
         )

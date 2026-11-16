@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.update
 /** In-memory stand-in for Room. Thread-safe enough for one sim thread + the UI thread. */
 class MemoryStore {
     val tripsFlow = MutableStateFlow<List<Trip>>(emptyList())
-    val settingsFlow = MutableStateFlow(Settings(odoBaseMi = 48_213.0, odoBaseSetMs = 0L))
+    val settingsFlow = MutableStateFlow(Settings(odoBaseKm = 77_600.0, odoBaseSetMs = 0L))
     val maintFlow = MutableStateFlow<List<MaintItem>>(emptyList())
     val fuelFlow = MutableStateFlow<List<FuelLog>>(emptyList())
 
@@ -77,15 +77,15 @@ class SandboxRepo(private val store: MemoryStore, engine: DriveEngine) : DashRep
     override val maintenance: Flow<List<MaintItem>> = store.maintFlow
     override val fuelLogs: Flow<List<FuelLog>> = store.fuelFlow
 
-    override val odometerMi: Flow<Double> = combine(store.settingsFlow, store.tripsFlow) { s, trips ->
-        s.odoBaseMi + trips.filter { it.startMs >= s.odoBaseSetMs }.sumOf { it.distanceM } * Geo.M_TO_MI
+    override val odometerKm: Flow<Double> = combine(store.settingsFlow, store.tripsFlow) { s, trips ->
+        s.odoBaseKm + trips.filter { it.startMs >= s.odoBaseSetMs }.sumOf { it.distanceM } * Geo.M_TO_KM
     }
 
     override suspend fun tripDetail(id: Long) = store.detail(id)
     override suspend fun deleteTrip(id: Long) = store.deleteTrip(id)
 
-    override fun setOdometer(mi: Double) =
-        store.settingsFlow.update { it.copy(odoBaseMi = mi, odoBaseSetMs = System.currentTimeMillis()) }
+    override fun setOdometer(km: Double) =
+        store.settingsFlow.update { it.copy(odoBaseKm = km, odoBaseSetMs = System.currentTimeMillis()) }
 
     override fun setPassengerMode(on: Boolean) = store.settingsFlow.update { it.copy(passengerMode = on) }
 

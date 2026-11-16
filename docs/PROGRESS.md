@@ -2,9 +2,10 @@
 
 _Update this file at the end of every session. Newest entry on top of "Log"._
 
-## Status: v0.2.0 — builds, tests pass (app + sandbox), lint clean. Desktop sandbox verified by screenshots. **Never run on a real truck/head unit yet.**
+## Status: v0.3.0 (metric) — builds, tests pass (app + sandbox), lint clean. Desktop sandbox verified by screenshots. **Never run on a real truck/head unit yet.**
 
 ## Done
+- **v0.3.0**: everything metric for Canada — km/h, km, m, litres, L/100 km, $/L; Room v2 + verified data migration (miles→km, gallons→litres); odometer pref migrated; sandbox scenarios use 50 km/h streets / 110 km/h highway
 - **v0.2.0**: shared source set (`shared/`) compiled by app + desktop sandbox; `DriveEngine`/`TripRecorder` extracted from the service; `DashRepository`; stateless UI + presenters; Windows-runnable sandbox (`docs/SANDBOX.md`) with scenarios, manual drive, seeded history, headless screenshots
 - Fixes found via sandbox screenshots: compass label overlap, readable durations, newest-first trips, trailing-idle excluded from trips, progress-bar stray dot, equal stat-tile heights, elevation chart noise (minSpan)
 - Project scaffold (Gradle KTS, version catalog, wrapper 8.14.3, Compose, Room+KSP)
@@ -35,11 +36,13 @@ _Update this file at the end of every session. Newest entry on top of "Log"._
 - Native Kotlin + Compose, not cross-platform: need foreground service, sensors, canvas gauges at 60 fps.
 - Distance by integrating Doppler speed × dt (more accurate than position haversine at 1 Hz).
 - One merged app for Live/Trips/Health (shared GPS/IMU service + DB). Markets Board is a **separate** app (internet-dependent, must not affect the speedometer).
+- Metric only (owner in Canada). Fuel economy is L/100 km (lower = better), not km/L.
 - minSdk 26 so `java.time` works without desugaring.
 - No icons library (keeps APK small); text tabs.
 - Shared code via a plain `srcDir` (not KMP plugin) to keep Android build simple; shared UI uses `collectAsState` (not lifecycle-aware) and `LocalBackHook` for platform back handling.
 - UI is laid out at a fixed 440 dp design width (`DesignScale`) because head-unit densities are unknown.
 
 ## Log
+- **2026-11-16 (v0.3.0)** — Metric conversion. Fable code review requested (see below / next log entry for outcome).
 - **2026-11-15 (v0.2.0)** — Pushed v0.1.0 to GitHub (`willfox882/truck-dash`). Built the sandbox; Maven Central occasionally 429s (just retry). Skiko GL falls back to software under Xvfb (harmless).
 - **2026-11-15** — v0.1.0 scaffold. Sandbox needed `dl.google.com` + `maven.google.com` allowed; Android SDK 35 installed in `/home/user/android-sdk`. GitHub token in the sandbox was invalid → repo not yet pushed.

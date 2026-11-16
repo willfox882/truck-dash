@@ -35,8 +35,8 @@ object AppGraph {
             if (db.maintDao().count() == 0) {
                 val now = System.currentTimeMillis()
                 listOf(
-                    MaintenanceItemEntity(name = "Oil & filter", intervalMiles = 7500, intervalDays = 180, lastDateMs = now),
-                    MaintenanceItemEntity(name = "Tire rotation", intervalMiles = 7500, lastDateMs = now),
+                    MaintenanceItemEntity(name = "Oil & filter", intervalKm = 8000, intervalDays = 180, lastDateMs = now),
+                    MaintenanceItemEntity(name = "Tire rotation", intervalKm = 10000, lastDateMs = now),
                     MaintenanceItemEntity(name = "Brake inspection", intervalDays = 365, lastDateMs = now),
                     MaintenanceItemEntity(name = "Registration", intervalDays = 365, lastDateMs = now),
                     MaintenanceItemEntity(name = "Insurance", intervalDays = 180, lastDateMs = now),

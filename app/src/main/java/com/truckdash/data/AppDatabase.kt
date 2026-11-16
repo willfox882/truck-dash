@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         FuelLogEntity::class,
         MaintenanceItemEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +23,8 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         fun build(ctx: Context): AppDatabase =
-            Room.databaseBuilder(ctx.applicationContext, AppDatabase::class.java, "truckdash.db").build()
+            Room.databaseBuilder(ctx.applicationContext, AppDatabase::class.java, "truckdash.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
     }
 }

@@ -60,7 +60,7 @@ fun LiveScreen(s: LiveState, modifier: Modifier = Modifier) {
             )
         }
 
-        SpeedGauge(s.speedMph, s.hasFix, Modifier.fillMaxWidth().weight(1.5f))
+        SpeedGauge(s.speedKmh, s.hasFix, Modifier.fillMaxWidth().weight(1.5f))
 
         Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             CompassRose(s.bearingDeg, Modifier.weight(1f).fillMaxSize())
@@ -71,13 +71,13 @@ fun LiveScreen(s: LiveState, modifier: Modifier = Modifier) {
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatTile("TRIP", "%.1f".format(s.tripMiles), "miles", Modifier.weight(1f))
+            StatTile("TRIP", "%.1f".format(s.tripKm), "km", Modifier.weight(1f))
             StatTile("MOVING", formatClock(s.tripMovingSec).first, formatClock(s.tripMovingSec).second, Modifier.weight(1f))
-            StatTile("AVG", s.tripAvgMph.roundToInt().toString(), "mph", Modifier.weight(1f))
+            StatTile("AVG", s.tripAvgKmh.roundToInt().toString(), "km/h", Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatTile("MAX", s.tripMaxMph.roundToInt().toString(), "mph", Modifier.weight(1f))
-            StatTile("ALT", s.altFt?.roundToInt()?.toString() ?: "--", "ft", Modifier.weight(1f))
+            StatTile("MAX", s.tripMaxKmh.roundToInt().toString(), "km/h", Modifier.weight(1f))
+            StatTile("ALT", s.altM?.roundToInt()?.toString() ?: "--", "m", Modifier.weight(1f))
             StatTile("GRADE", s.gradePct?.let { "%+.1f".format(it) } ?: "--", "%", Modifier.weight(1f))
         }
     }

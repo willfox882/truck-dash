@@ -55,9 +55,9 @@ data class EventEntity(
 data class FuelLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val dateMs: Long,
-    val odometerMi: Double,
-    val gallons: Double,
-    val pricePerGal: Double,
+    val odometerKm: Double,
+    val litres: Double,
+    val pricePerLitre: Double,
     val fullTank: Boolean = true,
 )
 
@@ -65,8 +65,8 @@ data class FuelLogEntity(
 data class MaintenanceItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val intervalMiles: Int? = null,
+    val intervalKm: Int? = null,
     val intervalDays: Int? = null,
-    val lastOdoMi: Double = 0.0,
+    val lastOdoKm: Double = 0.0,
     val lastDateMs: Long,
 )

@@ -16,9 +16,9 @@ import java.time.YearMonth
 import java.time.ZoneId
 
 data class TripsSummary(
-    val weekMiles: Double,
-    val monthMiles: Double,
-    val totalMiles: Double,
+    val weekKm: Double,
+    val monthKm: Double,
+    val totalKm: Double,
     val monthly: List<Pair<YearMonth, Double>>,
 )
 
@@ -32,10 +32,10 @@ class TripsPresenter(private val repo: DashRepository, private val scope: Corout
         val weekStart = today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
         val monthStart = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
         TripsSummary(
-            weekMiles = Analytics.milesSince(list, weekStart),
-            monthMiles = Analytics.milesSince(list, monthStart),
-            totalMiles = Analytics.milesSince(list, 0),
-            monthly = Analytics.milesByMonth(list, System.currentTimeMillis()),
+            weekKm = Analytics.kmSince(list, weekStart),
+            monthKm = Analytics.kmSince(list, monthStart),
+            totalKm = Analytics.kmSince(list, 0),
+            monthly = Analytics.kmByMonth(list, System.currentTimeMillis()),
         )
     }.stateIn(scope, SharingStarted.Eagerly, TripsSummary(0.0, 0.0, 0.0, emptyList()))
 

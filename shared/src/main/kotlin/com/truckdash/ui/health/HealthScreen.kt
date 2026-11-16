@@ -49,7 +49,7 @@ private val shortDate = DateTimeFormatter.ofPattern("MMM d")
 
 @Composable
 fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
-    val odo by vm.odometerMi.collectAsState()
+    val odo by vm.odometerKm.collectAsState()
     val maint by vm.maintenance.collectAsState()
     val fuel by vm.fuelLogs.collectAsState()
     val stats by vm.fuelStats.collectAsState()
@@ -68,7 +68,7 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
                 Text("ODOMETER (GPS-tracked)", color = Dash.dim, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("%,.0f".format(odo), color = Dash.text, fontSize = 52.sp, fontWeight = FontWeight.Bold)
-                    Text("  mi", color = Dash.dim, fontSize = 20.sp)
+                    Text("  km", color = Dash.dim, fontSize = 20.sp)
                     Box(Modifier.weight(1f))
                     TextButton(onClick = { dlg = Dialog.Odometer }) { Text("Set", fontSize = 18.sp) }
                 }
@@ -93,17 +93,17 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("AVG", stats.avgMpg?.let { "%.1f".format(it) } ?: "--", "mpg", Modifier.weight(1f))
-                StatTile("LAST", stats.lastMpg?.let { "%.1f".format(it) } ?: "--", "mpg", Modifier.weight(1f))
-                StatTile("COST", stats.costPerMile?.let { "$%.2f".format(it) } ?: "--", "per mile", Modifier.weight(1f))
+                StatTile("AVG", stats.avgLPer100?.let { "%.1f".format(it) } ?: "--", "L/100 km", Modifier.weight(1f))
+                StatTile("LAST", stats.lastLPer100?.let { "%.1f".format(it) } ?: "--", "L/100 km", Modifier.weight(1f))
+                StatTile("COST", stats.costPer100Km?.let { "$%.1f".format(it) } ?: "--", "per 100 km", Modifier.weight(1f))
             }
         }
         if (stats.points.size >= 2) {
             item {
                 DashCard(Modifier.fillMaxWidth()) {
-                    Text("MPG TREND", color = Dash.dim, fontSize = 13.sp)
+                    Text("FUEL USE TREND (L/100 km, lower is better)", color = Dash.dim, fontSize = 13.sp)
                     Box(Modifier.fillMaxWidth().height(110.dp).padding(top = 6.dp)) {
-                        LineChart(stats.points.map { it.mpg.toFloat() }, Dash.green)
+                        LineChart(stats.points.map { it.lPer100.toFloat() }, Dash.green)
                     }
                 }
             }
@@ -125,7 +125,7 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
     }
 
     when (dlg) {
-        Dialog.Odometer -> NumberDialog("Set odometer (miles)", odo.roundToInt().toString(), onDismiss = { dlg = null }) {
+        Dialog.Odometer -> NumberDialog("Set odometer (km)", odo.roundToInt().toString(), onDismiss = { dlg = null }) {
             vm.setOdometer(it); dlg = null
         }
         Dialog.AddMaint -> AddMaintDialog(onDismiss = { dlg = null }) { n, mi, d -> vm.addMaintenance(n, mi, d); dlg = null }
@@ -145,7 +145,7 @@ private fun MaintCard(item: MaintItem, odo: Double, now: Long, onDone: () -> Uni
         MaintLevel.OVERDUE -> Dash.red
     }
     val detail = listOfNotNull(
-        s.milesLeft?.let { if (it >= 0) "%,.0f mi left".format(it) else "%,.0f mi overdue".format(-it) },
+        s.kmLeft?.let { if (it >= 0) "%,.0f km left".format(it) else "%,.0f km overdue".format(-it) },
         s.daysLeft?.let { if (it >= 0) "$it d left" else "${-it} d overdue" },
     ).joinToString("  •  ")
     DashCard(Modifier.fillMaxWidth()) {
@@ -171,12 +171,12 @@ private fun FuelRow(f: FuelLog, onDelete: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    "%.1f gal  @ $%.2f  =  $%.2f".format(f.gallons, f.pricePerGal, f.gallons * f.pricePerGal),
+                    "%.1f L  @ $%.3f/L  =  $%.2f".format(f.litres, f.pricePerLitre, f.litres * f.pricePerLitre),
                     color = Dash.text, fontSize = 17.sp,
                 )
                 Text(
                     Instant.ofEpochMilli(f.dateMs).atZone(ZoneId.systemDefault()).format(shortDate) +
-                        "  •  %,.0f mi".format(f.odometerMi) + if (f.fullTank) "" else "  •  partial",
+                        "  •  %,.0f km".format(f.odometerKm) + if (f.fullTank) "" else "  •  partial",
                     color = Dash.dim, fontSize = 13.sp,
                 )
             }
@@ -209,7 +209,7 @@ private fun NumField(label: String, value: String, onChange: (String) -> Unit) {
 @Composable
 private fun AddMaintDialog(onDismiss: () -> Unit, onOk: (String, Int?, Int?) -> Unit) {
     var name by remember { mutableStateOf("") }
-    var miles by remember { mutableStateOf("") }
+    var km by remember { mutableStateOf("") }
     var days by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -217,13 +217,13 @@ private fun AddMaintDialog(onDismiss: () -> Unit, onOk: (String, Int?, Int?) -> 
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                NumField("Every … miles (optional)", miles) { miles = it }
+                NumField("Every … km (optional)", km) { km = it }
                 NumField("Every … days (optional)", days) { days = it }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val m = miles.toDoubleOrNull()?.roundToInt()
+                val m = km.toDoubleOrNull()?.roundToInt()
                 val d = days.toDoubleOrNull()?.roundToInt()
                 if (name.isNotBlank() && (m != null || d != null)) onOk(name.trim(), m, d)
             }) { Text("Add") }
@@ -234,7 +234,7 @@ private fun AddMaintDialog(onDismiss: () -> Unit, onOk: (String, Int?, Int?) -> 
 
 @Composable
 private fun AddFuelDialog(odo: Double, onDismiss: () -> Unit, onOk: (Double, Double, Double, Boolean) -> Unit) {
-    var gal by remember { mutableStateOf("") }
+    var litres by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var o by remember { mutableStateOf(odo.roundToInt().toString()) }
     var full by remember { mutableStateOf(true) }
@@ -243,9 +243,9 @@ private fun AddFuelDialog(odo: Double, onDismiss: () -> Unit, onOk: (Double, Dou
         title = { Text("Add fill-up") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumField("Gallons", gal) { gal = it }
-                NumField("Price per gallon", price) { price = it }
-                NumField("Odometer", o) { o = it }
+                NumField("Litres", litres) { litres = it }
+                NumField("Price per litre ($/L)", price) { price = it }
+                NumField("Odometer (km)", o) { o = it }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(full, { full = it })
                     Text("Filled the tank", color = Color.Unspecified)
@@ -254,7 +254,7 @@ private fun AddFuelDialog(odo: Double, onDismiss: () -> Unit, onOk: (Double, Dou
         },
         confirmButton = {
             TextButton(onClick = {
-                val g = gal.toDoubleOrNull(); val p = price.toDoubleOrNull(); val od = o.toDoubleOrNull()
+                val g = litres.toDoubleOrNull(); val p = price.toDoubleOrNull(); val od = o.toDoubleOrNull()
                 if (g != null && p != null && od != null && g > 0) onOk(g, p, od, full)
             }) { Text("Save") }
         },

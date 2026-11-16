@@ -14,14 +14,14 @@ interface DashRepository {
     val live: StateFlow<LiveState>
     val settings: StateFlow<Settings>
     val trips: Flow<List<Trip>>
-    val odometerMi: Flow<Double>
+    val odometerKm: Flow<Double>
     val maintenance: Flow<List<MaintItem>>
     val fuelLogs: Flow<List<FuelLog>>
 
     suspend fun tripDetail(id: Long): TripDetail?
     suspend fun deleteTrip(id: Long)
 
-    fun setOdometer(mi: Double)
+    fun setOdometer(km: Double)
     fun setPassengerMode(on: Boolean)
 
     suspend fun addFuel(log: FuelLog)

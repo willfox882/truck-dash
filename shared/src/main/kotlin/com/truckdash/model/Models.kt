@@ -26,24 +26,24 @@ data class TripDetail(val trip: Trip, val points: List<TrackPoint>, val events: 
 data class FuelLog(
     val id: Long = 0,
     val dateMs: Long,
-    val odometerMi: Double,
-    val gallons: Double,
-    val pricePerGal: Double,
+    val odometerKm: Double,
+    val litres: Double,
+    val pricePerLitre: Double,
     val fullTank: Boolean = true,
 )
 
 data class MaintItem(
     val id: Long = 0,
     val name: String,
-    val intervalMiles: Int? = null,
+    val intervalKm: Int? = null,
     val intervalDays: Int? = null,
-    val lastOdoMi: Double = 0.0,
+    val lastOdoKm: Double = 0.0,
     val lastDateMs: Long,
 )
 
 data class Settings(
-    /** Odometer reading the user entered, at [odoBaseSetMs]. Live odometer = base + trips since. */
-    val odoBaseMi: Double = 0.0,
+    /** Odometer reading (km) the user entered, at [odoBaseSetMs]. Live odometer = base + trips since. */
+    val odoBaseKm: Double = 0.0,
     val odoBaseSetMs: Long = 0L,
     /** Passenger mode disables the "parked only" lock on the Trips/Health tabs. */
     val passengerMode: Boolean = false,
@@ -54,9 +54,9 @@ data class Settings(
 data class LiveState(
     val serviceRunning: Boolean = false,
     val hasFix: Boolean = false,
-    val speedMph: Float = 0f,
+    val speedKmh: Float = 0f,
     val bearingDeg: Float? = null,
-    val altFt: Double? = null,
+    val altM: Double? = null,
     val lat: Double? = null,
     val lon: Double? = null,
     val accuracyM: Float? = null,
@@ -64,10 +64,10 @@ data class LiveState(
     val latG: Float = 0f,
     val gradePct: Float? = null,
     val recording: Boolean = false,
-    val tripMiles: Double = 0.0,
+    val tripKm: Double = 0.0,
     val tripMovingSec: Long = 0,
-    val tripMaxMph: Float = 0f,
+    val tripMaxKmh: Float = 0f,
 ) {
-    val tripAvgMph: Float
-        get() = if (tripMovingSec > 0) (tripMiles / (tripMovingSec / 3600.0)).toFloat() else 0f
+    val tripAvgKmh: Float
+        get() = if (tripMovingSec > 0) (tripKm / (tripMovingSec / 3600.0)).toFloat() else 0f
 }
