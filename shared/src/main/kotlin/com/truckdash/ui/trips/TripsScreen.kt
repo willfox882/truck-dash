@@ -11,10 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,16 +23,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.collectAsState
 import com.truckdash.core.Analytics
 import com.truckdash.core.Geo
 import com.truckdash.core.HarshType
 import com.truckdash.model.Trip
 import com.truckdash.model.TripDetail
-import com.truckdash.ui.LocalBackHook
 import com.truckdash.ui.Dash
 import com.truckdash.ui.DashCard
-import com.truckdash.ui.StatTile
+import com.truckdash.ui.DashDialog
+import com.truckdash.ui.Dot
+import com.truckdash.ui.Hairline
+import com.truckdash.ui.Label
+import com.truckdash.ui.LocalBackHook
+import com.truckdash.ui.Numeral
+import com.truckdash.ui.ScreenTitle
+import com.truckdash.ui.SectionHeader
+import com.truckdash.ui.StatGrid
+import com.truckdash.ui.StatItem
+import com.truckdash.ui.TextAction
 import com.truckdash.ui.charts.BarChart
 import com.truckdash.ui.charts.GeoPt
 import com.truckdash.ui.charts.LineChart
@@ -46,10 +53,11 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-private val dateFmt = DateTimeFormatter.ofPattern("EEE, MMM d  h:mm a")
+private val dayFmt = DateTimeFormatter.ofPattern("EEE, MMM d")
+private val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
 private val monthFmt = DateTimeFormatter.ofPattern("MMM")
 
-private fun fmtDate(ms: Long) = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(dateFmt)
+private fun zoned(ms: Long) = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault())
 
 @Composable
 fun TripsScreen(vm: TripsPresenter, modifier: Modifier = Modifier) {
@@ -67,52 +75,64 @@ private fun TripsList(vm: TripsPresenter, modifier: Modifier) {
     val trips by vm.trips.collectAsState()
     val sum by vm.summary.collectAsState()
     LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Text("Trips", color = Dash.text, fontSize = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp)) }
+        item { ScreenTitle("Trips", Modifier.padding(top = 18.dp)) }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("7 DAYS", "%.0f".format(sum.weekKm), "km", Modifier.weight(1f))
-                StatTile("THIS MONTH", "%.0f".format(sum.monthKm), "km", Modifier.weight(1f))
-                StatTile("ALL TIME", "%.0f".format(sum.totalKm), "km", Modifier.weight(1f))
-            }
+            StatGrid(
+                listOf(
+                    StatItem("7 days", "%.0f".format(sum.weekKm), "km"),
+                    StatItem("This month", "%.0f".format(sum.monthKm), "km"),
+                    StatItem("All time", "%.0f".format(sum.totalKm), "km"),
+                ),
+            )
         }
         item {
             DashCard(Modifier.fillMaxWidth()) {
-                Text("KM PER MONTH", color = Dash.dim, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(120.dp).padding(top = 8.dp)) {
-                    BarChart(sum.monthly.map { it.second.toFloat() }, Dash.cyan)
+                Label("Km per month")
+                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 10.dp)) {
+                    BarChart(sum.monthly.map { it.second.toFloat() })
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    sum.monthly.forEach { Text(it.first.format(monthFmt), color = Dash.dim, fontSize = 12.sp) }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    sum.monthly.forEach { Text(it.first.format(monthFmt), color = Dash.faint, fontSize = 11.sp) }
                 }
             }
         }
+        item { SectionHeader("Recent trips") }
         if (trips.isEmpty()) {
-            item { Text("No trips yet. Drive somewhere — recording starts automatically.", color = Dash.dim, fontSize = 16.sp) }
+            item { Text("No trips yet. Recording starts automatically when you drive.", color = Dash.dim, fontSize = 15.sp) }
         }
-        items(trips, key = { it.id }) { t -> TripRow(t) { vm.open(t.id) } }
-        item { Box(Modifier.height(12.dp)) }
+        items(trips, key = { it.id }) { t ->
+            TripRow(t) { vm.open(t.id) }
+            Hairline()
+        }
+        item { Box(Modifier.height(16.dp)) }
     }
 }
 
 @Composable
 private fun TripRow(t: Trip, onClick: () -> Unit) {
-    DashCard(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(fmtDate(t.startMs), color = Dash.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                val dur = ((t.endMs ?: System.currentTimeMillis()) - t.startMs) / 1000
-                Text(
-                    "%.1f km  •  ${formatDurationShort(dur)}  •  max ${(t.maxSpeedMps * Geo.MPS_TO_KMH).roundToInt()} km/h"
-                        .format(t.distanceM * Geo.M_TO_KM) + if (t.endMs == null) "  • in progress" else "",
-                    color = Dash.dim, fontSize = 14.sp,
-                )
-            }
-            val harshTotal = t.harshAccel + t.harshBrake + t.harshCorner
-            if (harshTotal > 0) Text("$harshTotal ⚠", color = Dash.amber, fontSize = 18.sp)
+    val start = zoned(t.startMs)
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(start.format(dayFmt), color = Dash.text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+            val dur = (((t.endMs ?: System.currentTimeMillis()) - t.startMs) / 1000).coerceAtLeast(0)
+            val inProgress = if (t.endMs == null) "  ·  in progress" else ""
+            Text(
+                "${start.format(timeFmt)}  ·  ${formatDurationShort(dur)}  ·  max ${(t.maxSpeedMps * Geo.MPS_TO_KMH).roundToInt()} km/h$inProgress",
+                color = Dash.dim, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp),
+            )
         }
+        val harsh = t.harshAccel + t.harshBrake + t.harshCorner
+        if (harsh > 0) {
+            Dot(Dash.amber, 6)
+            Text("$harsh", color = Dash.amber, fontSize = 13.sp, modifier = Modifier.padding(start = 5.dp, end = 14.dp))
+        }
+        Numeral("%.1f".format(t.distanceM * Geo.M_TO_KM), "km", 22.sp)
     }
 }
 
@@ -129,77 +149,93 @@ private fun TripDetailScreen(d: TripDetail, onBack: () -> Unit, onDelete: () -> 
             when (it.type) {
                 HarshType.BRAKE.name -> Dash.red
                 HarshType.ACCEL.name -> Dash.amber
-                else -> androidx.compose.ui.graphics.Color(0xFFB388FF)
+                else -> Dash.text
             },
         )
     }
+    val moving = formatClock(t.movingMs / 1000)
+    val stopped = formatClock(t.stoppedMs / 1000)
+    val start = zoned(t.startMs)
     LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("‹ Back", fontSize = 18.sp) }
+            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextAction("‹ Trips", onBack, color = Dash.text)
                 Box(Modifier.weight(1f))
-                if (t.endMs != null) {
-                    TextButton(onClick = { confirm = true }) { Text("Delete", color = Dash.red, fontSize = 16.sp) }
+                if (t.endMs != null) TextAction("Delete", { confirm = true }, color = Dash.red)
+            }
+            ScreenTitle(start.format(dayFmt))
+            Text(start.format(timeFmt), color = Dash.dim, fontSize = 15.sp, modifier = Modifier.padding(top = 2.dp))
+        }
+        item {
+            StatGrid(
+                listOf(
+                    StatItem("Distance", "%.1f".format(t.distanceM * Geo.M_TO_KM), "km"),
+                    StatItem("Moving", moving.first, moving.second),
+                    StatItem("Stopped", stopped.first, stopped.second),
+                    StatItem("Average", Analytics.avgMovingKmh(t)?.roundToInt()?.toString() ?: "--", "km/h"),
+                    StatItem("Max", (t.maxSpeedMps * Geo.MPS_TO_KMH).roundToInt().toString(), "km/h"),
+                    StatItem("Climb", t.elevGainM.roundToInt().toString(), "m"),
+                ),
+            )
+        }
+        item {
+            DashCard(Modifier.fillMaxWidth()) {
+                Label("Route")
+                Box(Modifier.fillMaxWidth().height(260.dp)) { RouteMap(route, markers) }
+                Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Dot(Dash.red, 6); Text(" Hard brake   ", color = Dash.dim, fontSize = 12.sp)
+                    Dot(Dash.amber, 6); Text(" Hard launch   ", color = Dash.dim, fontSize = 12.sp)
+                    Dot(Dash.text, 6); Text(" Sharp corner", color = Dash.dim, fontSize = 12.sp)
                 }
             }
-            Text(fmtDate(t.startMs), color = Dash.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("DISTANCE", "%.1f".format(t.distanceM * Geo.M_TO_KM), "km", Modifier.weight(1f))
-                StatTile("MOVING", formatClock(t.movingMs / 1000).first, formatClock(t.movingMs / 1000).second, Modifier.weight(1f))
-                StatTile("STOPPED", formatClock(t.stoppedMs / 1000).first, formatClock(t.stoppedMs / 1000).second, Modifier.weight(1f))
-            }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("AVG", Analytics.avgMovingKmh(t)?.roundToInt()?.toString() ?: "--", "km/h", Modifier.weight(1f))
-                StatTile("MAX", (t.maxSpeedMps * Geo.MPS_TO_KMH).roundToInt().toString(), "km/h", Modifier.weight(1f))
-                StatTile("CLIMB", t.elevGainM.roundToInt().toString(), "m", Modifier.weight(1f))
+            DashCard(Modifier.fillMaxWidth()) {
+                Label("Speed  ·  peak ${speeds.maxOrNull()?.roundToInt() ?: 0} km/h")
+                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 8.dp)) {
+                    LineChart(speeds, minOverride = 0f, minSpan = 30f)
+                }
             }
         }
         item {
             DashCard(Modifier.fillMaxWidth()) {
-                Text("ROUTE", color = Dash.dim, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(260.dp)) { RouteMap(route, markers) }
-                Text(
-                    "green start · red end · red dot brake · amber accel · purple corner",
-                    color = Dash.dim, fontSize = 12.sp,
-                )
+                Label("Elevation  ·  ${alts.minOrNull()?.roundToInt() ?: 0} to ${alts.maxOrNull()?.roundToInt() ?: 0} m")
+                Box(Modifier.fillMaxWidth().height(110.dp).padding(top = 8.dp)) {
+                    LineChart(alts, color = Dash.dim, minSpan = 12f)
+                }
             }
         }
         item {
             DashCard(Modifier.fillMaxWidth()) {
-                Text("SPEED (km/h)  ·  peak ${speeds.maxOrNull()?.roundToInt() ?: 0}", color = Dash.dim, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 6.dp)) { LineChart(speeds, Dash.cyan, minOverride = 0f, minSpan = 30f) }
-            }
-        }
-        item {
-            DashCard(Modifier.fillMaxWidth()) {
-                Text("ELEVATION (m)  ·  ${alts.minOrNull()?.roundToInt() ?: 0} to ${alts.maxOrNull()?.roundToInt() ?: 0}", color = Dash.dim, fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(130.dp).padding(top = 6.dp)) { LineChart(alts, Dash.green, minSpan = 12f) }
-            }
-        }
-        item {
-            DashCard(Modifier.fillMaxWidth()) {
-                Text("DRIVING EVENTS", color = Dash.dim, fontSize = 13.sp)
-                Text("Hard braking: ${t.harshBrake}", color = Dash.text, fontSize = 18.sp)
-                Text("Hard acceleration: ${t.harshAccel}", color = Dash.text, fontSize = 18.sp)
-                Text("Hard cornering: ${t.harshCorner}", color = Dash.text, fontSize = 18.sp)
+                Label("Driving events")
+                EventRow("Hard braking", t.harshBrake, Dash.red)
+                Hairline()
+                EventRow("Hard acceleration", t.harshAccel, Dash.amber)
+                Hairline()
+                EventRow("Hard cornering", t.harshCorner, Dash.text)
             }
             Box(Modifier.height(16.dp))
         }
     }
     if (confirm) {
-        AlertDialog(
-            onDismissRequest = { confirm = false },
-            title = { Text("Delete this trip?") },
-            text = { Text("The route and stats will be removed permanently.") },
-            confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text("Delete", color = Dash.red) } },
-            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
-        )
+        DashDialog(
+            title = "Delete this trip?",
+            onDismiss = { confirm = false },
+            confirmText = "Delete",
+            onConfirm = { confirm = false; onDelete() },
+            danger = true,
+        ) { Text("The route and stats will be removed.", color = Dash.dim) }
+    }
+}
+
+@Composable
+private fun EventRow(name: String, count: Int, color: androidx.compose.ui.graphics.Color) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        Dot(if (count > 0) color else Dash.line, 7)
+        Text(name, color = Dash.text, fontSize = 16.sp, modifier = Modifier.padding(start = 10.dp).weight(1f))
+        Text("$count", color = if (count > 0) Dash.text else Dash.faint, fontSize = 16.sp)
     }
 }

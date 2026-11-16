@@ -31,6 +31,7 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     // UI, engine, models and core logic are shared with the desktop sandbox.
     sourceSets["main"].java.srcDir("../shared/src/main/kotlin")
+    sourceSets["main"].res.srcDir("../shared/res") // Geist font files (also used by the sandbox)
 }
 
 kotlin {

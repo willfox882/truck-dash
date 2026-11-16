@@ -1,10 +1,10 @@
 # Truck Dash
 
-Portrait dashboard for a 14.4" Android head unit in a 2015 GMC Sierra 1500. GPS + IMU only — no OBD, no extra hardware.
+Portrait dashboard for a 14.4" Android head unit in a 2015 GMC Sierra 1500. GPS + IMU only - no OBD, no extra hardware.
 
-- **LIVE** — speed gauge, compass, G-force ball, trip stats, grade, altitude
-- **TRIPS** — auto-recorded trips, route maps, speed/elevation charts, harsh-driving events, km per month
-- **HEALTH** — GPS odometer, maintenance reminders, fuel log with L/100 km and cost per 100 km
+- **LIVE** - speed gauge, compass, G-force ball, trip stats, grade, altitude
+- **TRIPS** - auto-recorded trips, route maps, speed/elevation charts, harsh-driving events, km per month
+- **HEALTH** - GPS odometer, maintenance reminders, fuel log with L/100 km and cost per 100 km
 
 **Try it on a desktop:** the [sandbox](docs/SANDBOX.md) runs the real UI against a simulated truck (Windows: Java 17 + `run-sandbox.bat`).
 

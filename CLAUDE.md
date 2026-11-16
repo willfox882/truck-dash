@@ -1,4 +1,4 @@
-# Truck Dash — agent guide (READ THIS FIRST)
+# Truck Dash - agent guide (READ THIS FIRST)
 
 Android app (Kotlin + Compose + Room) for a 14.4" **portrait** head unit in a 2015 GMC Sierra 1500.
 No OBD, no external hardware: only the unit's GPS, IMU and (later) low-speed body-bus broadcasts.
@@ -6,7 +6,7 @@ No OBD, no external hardware: only the unit's GPS, IMU and (later) low-speed bod
 **Do not re-read the whole repo.** Workflow for every session:
 0. Sandbox + screenshots exist: verify UI/logic changes there before touching a device (`docs/SANDBOX.md`).
 1. Read `docs/PROGRESS.md` (state, next steps, known issues, decisions).
-2. Read `docs/ARCHITECTURE.md` (file map — one line per file) and open only the files you need.
+2. Read `docs/ARCHITECTURE.md` (file map - one line per file) and open only the files you need.
 3. After changing anything: update `docs/PROGRESS.md` (and `ARCHITECTURE.md` if files were added/moved/renamed). Commit.
 
 ## Commands
@@ -24,11 +24,17 @@ Sandbox network must allow `dl.google.com` + `maven.google.com` for Gradle/AGP/S
 - Package `com.truckdash`. minSdk 26, targetSdk 34, Kotlin 2.1, Compose BOM 2025.01.
 - **Code in `shared/src/main/kotlin` is compiled by BOTH `:app` (Android) and `:sandbox` (desktop JVM)**: no `android.*`, Room, `androidx.lifecycle`, or `androidx.activity` imports there. Android-only things go in `app/` and are injected (e.g. `LocalBackHook`, `DashRepository`).
 - **Put logic in `shared/.../core` or `engine` as pure Kotlin** (no Android imports) and unit-test it in `app/src/test/.../core`. Services/UI stay thin.
-- Dark-only UI (`ui/Theme.kt` → `Dash` palette). Portrait only. Big touch targets (head unit).
+- **Design language (premium, Apple / Wealthsimple feel). Keep it:**
+  - Matte near-black (`Dash.bg` #0A0A0B), surfaces #131315, hairlines (#28282C) instead of boxes. No navy, no gradients on surfaces, no glow.
+  - **Typeface: Geist** (static Light/Regular/Medium/SemiBold in `shared/res/font`, OFL). Big numerals use Light; labels are 11sp Medium UPPERCASE with letter spacing (`Label`). Never rely on the platform default font. Platform code sets `DashFonts.family`.
+  - **Colour is meaning, not decoration.** White is the primary accent. Green = ok/live GPS, amber = caution, red = critical/recording. Everything else is greyscale (`text`, `dim`, `faint`). Do not add new hues.
+  - Reuse `Components.kt` (`DashCard`, `StatGrid`, `Numeral`, `PillButton`, `TextAction`, `DashDialog`, `Hairline`, `Label`); lists are rows separated by hairlines, not stacked coloured cards.
+  - **No em-dashes** anywhere (UI text, docs, commit messages, chat). Use commas, colons or the middle dot. Short units go beside the value, long ones in `StatItem.sub`.
+  - Portrait only. Big touch targets (head unit). After any UI change run `:sandbox:screenshots` and look at every screen.
 - Safety: Trips/Health tabs lock above 5 km/h unless Passenger mode (`ui/TruckDashRoot.kt`). Keep that rule for any dense UI.
 - Room: schema exported to `app/schemas/`. Any entity change → bump `version` and add a migration (never destructive). v1→v2 (imperial→metric) lives in `data/Migrations.kt` and was verified against real SQLite; do the same for future ones.
 - Version catalog: `gradle/libs.versions.toml`. Don't hard-code versions in `build.gradle.kts`.
-- **Units (owner is in Canada — METRIC ONLY, never imperial):** speed km/h, distance km, altitude m, fuel litres and **L/100 km** (price $/L, cost per 100 km), oil in litres, **pressures in kPa** (never psi), temperature °C. Raw trip storage stays SI (metres, m/s); fuel/odometer/maintenance are stored in km / litres. `Geo` has the factors (`MPS_TO_KMH`, `M_TO_KM`). Any new feature (tire pressure, oil pressure, coolant temp…) must follow this.
+- **Units (owner is in Canada - METRIC ONLY, never imperial):** speed km/h, distance km, altitude m, fuel litres and **L/100 km** (price $/L, cost per 100 km), oil in litres, **pressures in kPa** (never psi), temperature °C. Raw trip storage stays SI (metres, m/s); fuel/odometer/maintenance are stored in km / litres. `Geo` has the factors (`MPS_TO_KMH`, `M_TO_KM`). Any new feature (tire pressure, oil pressure, coolant temp…) must follow this.
 
 ## Key design facts
 - `DriveEngine` (shared) is the brain: feed it GPS fixes + vehicle-frame g; it keeps `LiveState` and records trips through a `TripSink`. `DriveService` (Android) and `SimController` (sandbox) are just two feeders.

@@ -9,6 +9,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 
 fun main() = application {
+    loadDashFonts()
     val state = rememberWindowState(size = DpSize(1240.dp, 960.dp), position = WindowPosition(Alignment.Center))
     Window(onCloseRequest = ::exitApplication, title = "Truck Dash Sandbox", state = state) {
         SandboxApp()

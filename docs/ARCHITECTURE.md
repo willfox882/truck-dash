@@ -34,8 +34,8 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | File | Purpose |
 |---|---|
 | `TruckDashRoot.kt` | tab shell, speed lock ("PARKED ONLY"), `DesignScale` (layout as 440 dp wide at any density), `LocalBackHook` |
-| `Theme.kt`, `Format.kt` | `Dash` palette, `DashCard`, `StatTile`; duration formatting |
-| `live/LiveScreen.kt`, `live/Gauges.kt` | portrait live layout; `SpeedGauge`, `CompassRose`, `GBall` (Canvas) |
+| `Theme.kt`, `Components.kt`, `Format.kt` | design tokens (`Dash`, `DashFonts`), theme; shared components (`DashCard`, `StatGrid`, `Numeral`, `PillButton`, `TextAction`, `DashDialog`, `Hairline`, `Label`); duration formatting |
+| `live/LiveScreen.kt`, `live/Gauges.kt` | portrait live layout; `SpeedGauge`, `CompassRose`, `GBall` (Canvas, hairline style) |
 | `trips/TripsScreen.kt`, `trips/TripsPresenter.kt` | list + monthly chart + detail (route, speed/elevation, events) |
 | `health/HealthScreen.kt`, `health/HealthPresenter.kt` | odometer, maintenance, fuel (L/100 km), passenger-mode switch, dialogs |
 | `charts/Charts.kt` | `LineChart`, `BarChart`, `RouteMap` |
@@ -51,5 +51,5 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `data/RoomTripSink.kt`, `RoomDashRepository.kt` | engine output → Room; repository over Room + `SettingsStore` |
 | `data/SettingsStore.kt`, `AppGraph.kt` | prefs-backed settings; service locator + first-run maintenance seeding |
 
-## sandbox/ (desktop) — see `docs/SANDBOX.md`
+## sandbox/ (desktop) - see `docs/SANDBOX.md`
 `VehicleSim.kt` (physics + scenarios), `SimController.kt`, `MemoryStore.kt`, `Session.kt`, `SandboxApp.kt`, `Main.kt`, `Screenshots.kt`.

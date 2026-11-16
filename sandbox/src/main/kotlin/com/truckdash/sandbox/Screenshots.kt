@@ -15,6 +15,7 @@ import java.io.File
  */
 @OptIn(ExperimentalComposeUiApi::class)
 fun main(args: Array<String>) {
+    loadDashFonts()
     val out = File(args.firstOrNull() ?: "build/screenshots").apply { mkdirs() }
     val session = SandboxSession.create()
     val c = session.controller

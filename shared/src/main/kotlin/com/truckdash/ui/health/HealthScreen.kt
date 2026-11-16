@@ -1,5 +1,7 @@
 package com.truckdash.ui.health
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,42 +12,54 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.collectAsState
 import com.truckdash.core.MaintLevel
 import com.truckdash.core.MaintenanceCalc
 import com.truckdash.model.FuelLog
 import com.truckdash.model.MaintItem
 import com.truckdash.ui.Dash
 import com.truckdash.ui.DashCard
-import com.truckdash.ui.StatTile
+import com.truckdash.ui.DashDialog
+import com.truckdash.ui.Hairline
+import com.truckdash.ui.Label
+import com.truckdash.ui.Numeral
+import com.truckdash.ui.PillButton
+import com.truckdash.ui.ScreenTitle
+import com.truckdash.ui.SectionHeader
+import com.truckdash.ui.StatGrid
+import com.truckdash.ui.StatItem
+import com.truckdash.ui.TextAction
 import com.truckdash.ui.charts.LineChart
+import com.truckdash.ui.dashCheckboxColors
+import com.truckdash.ui.dashFieldColors
+import com.truckdash.ui.dashSwitchColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 private val shortDate = DateTimeFormatter.ofPattern("MMM d")
+
+private enum class Dlg { Odometer, AddMaint, AddFuel }
 
 @Composable
 fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
@@ -54,70 +68,80 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
     val fuel by vm.fuelLogs.collectAsState()
     val stats by vm.fuelStats.collectAsState()
     val settings by vm.settings.collectAsState()
-    var dlg by remember { mutableStateOf<Dialog?>(null) }
+    var dlg by remember { mutableStateOf<Dlg?>(null) }
     val now = System.currentTimeMillis()
 
     LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Text("Truck Health", color = Dash.text, fontSize = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp)) }
+        item { ScreenTitle("Health", Modifier.padding(top = 18.dp)) }
 
         item {
             DashCard(Modifier.fillMaxWidth()) {
-                Text("ODOMETER (GPS-tracked)", color = Dash.dim, fontSize = 13.sp)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("%,.0f".format(odo), color = Dash.text, fontSize = 52.sp, fontWeight = FontWeight.Bold)
-                    Text("  km", color = Dash.dim, fontSize = 20.sp)
-                    Box(Modifier.weight(1f))
-                    TextButton(onClick = { dlg = Dialog.Odometer }) { Text("Set", fontSize = 18.sp) }
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f)) {
+                        Label("Odometer")
+                        Numeral("%,.0f".format(odo), "km", 54.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text("Tracked by GPS", color = Dash.faint, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+                    }
+                    PillButton("Set", { dlg = Dlg.Odometer }, small = true)
                 }
             }
         }
 
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("MAINTENANCE", color = Dash.dim, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = { dlg = Dialog.AddMaint }) { Text("+ Add", fontSize = 16.sp) }
-            }
+            SectionHeader("Maintenance") { TextAction("Add", { dlg = Dlg.AddMaint }, color = Dash.text) }
         }
-        items(maint, key = { "m${it.id}" }) { item ->
-            MaintCard(item, odo, now, onDone = { vm.markDone(item) }, onDelete = { vm.deleteMaintenance(item) })
+        item {
+            DashCard(Modifier.fillMaxWidth(), padding = 0) {
+                if (maint.isEmpty()) Text("Nothing scheduled.", color = Dash.dim, modifier = Modifier.padding(18.dp))
+                maint.forEachIndexed { i, item ->
+                    if (i > 0) Hairline()
+                    MaintRow(item, odo, now, onDone = { vm.markDone(item) }, onDelete = { vm.deleteMaintenance(item) })
+                }
+            }
         }
 
+        item { SectionHeader("Fuel") { TextAction("Add fill-up", { dlg = Dlg.AddFuel }, color = Dash.text) } }
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("FUEL", color = Dash.dim, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = { dlg = Dialog.AddFuel }) { Text("+ Fill-up", fontSize = 16.sp) }
-            }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("AVG", stats.avgLPer100?.let { "%.1f".format(it) } ?: "--", "L/100 km", Modifier.weight(1f))
-                StatTile("LAST", stats.lastLPer100?.let { "%.1f".format(it) } ?: "--", "L/100 km", Modifier.weight(1f))
-                StatTile("COST", stats.costPer100Km?.let { "$%.1f".format(it) } ?: "--", "per 100 km", Modifier.weight(1f))
-            }
+            StatGrid(
+                listOf(
+                    StatItem("Average", stats.avgLPer100?.let { "%.1f".format(it) } ?: "--", sub = "L/100 km"),
+                    StatItem("Last fill", stats.lastLPer100?.let { "%.1f".format(it) } ?: "--", sub = "L/100 km"),
+                    StatItem("Cost", stats.costPer100Km?.let { "$%.0f".format(it) } ?: "--", sub = "per 100 km"),
+                ),
+            )
         }
         if (stats.points.size >= 2) {
             item {
                 DashCard(Modifier.fillMaxWidth()) {
-                    Text("FUEL USE TREND (L/100 km, lower is better)", color = Dash.dim, fontSize = 13.sp)
-                    Box(Modifier.fillMaxWidth().height(110.dp).padding(top = 6.dp)) {
-                        LineChart(stats.points.map { it.lPer100.toFloat() }, Dash.green)
+                    Label("Fuel use, L/100 km")
+                    Box(Modifier.fillMaxWidth().height(100.dp).padding(top = 8.dp)) {
+                        LineChart(stats.points.map { it.lPer100.toFloat() }, minSpan = 4f)
                     }
                 }
             }
         }
-        items(fuel.take(30), key = { "f${it.id}" }) { f -> FuelRow(f) { vm.deleteFuel(f) } }
+        if (fuel.isNotEmpty()) {
+            item {
+                DashCard(Modifier.fillMaxWidth(), padding = 0) {
+                    fuel.take(30).forEachIndexed { i, f ->
+                        if (i > 0) Hairline()
+                        FuelRow(f) { vm.deleteFuel(f) }
+                    }
+                }
+            }
+        }
 
         item {
             DashCard(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Passenger mode", color = Dash.text, fontSize = 18.sp)
-                        Text("Unlock Trips & Health while driving", color = Dash.dim, fontSize = 13.sp)
+                        Text("Passenger mode", color = Dash.text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        Text("Keep Trips and Health open while driving", color = Dash.dim, fontSize = 13.sp)
                     }
-                    Switch(settings.passengerMode, onCheckedChange = vm::setPassengerMode)
+                    Switch(settings.passengerMode, onCheckedChange = vm::setPassengerMode, colors = dashSwitchColors())
                 }
             }
             Box(Modifier.height(16.dp))
@@ -125,76 +149,65 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
     }
 
     when (dlg) {
-        Dialog.Odometer -> NumberDialog("Set odometer (km)", odo.roundToInt().toString(), onDismiss = { dlg = null }) {
+        Dlg.Odometer -> NumberDialog("Set odometer (km)", odo.roundToInt().toString(), onDismiss = { dlg = null }) {
             vm.setOdometer(it); dlg = null
         }
-        Dialog.AddMaint -> AddMaintDialog(onDismiss = { dlg = null }) { n, mi, d -> vm.addMaintenance(n, mi, d); dlg = null }
-        Dialog.AddFuel -> AddFuelDialog(odo, onDismiss = { dlg = null }) { g, p, o, full -> vm.addFuel(g, p, o, full); dlg = null }
+        Dlg.AddMaint -> AddMaintDialog(onDismiss = { dlg = null }) { n, km, d -> vm.addMaintenance(n, km, d); dlg = null }
+        Dlg.AddFuel -> AddFuelDialog(odo, onDismiss = { dlg = null }) { l, p, o, full -> vm.addFuel(l, p, o, full); dlg = null }
         null -> Unit
     }
 }
 
-private enum class Dialog { Odometer, AddMaint, AddFuel }
-
 @Composable
-private fun MaintCard(item: MaintItem, odo: Double, now: Long, onDone: () -> Unit, onDelete: () -> Unit) {
+private fun MaintRow(item: MaintItem, odo: Double, now: Long, onDone: () -> Unit, onDelete: () -> Unit) {
     val s = MaintenanceCalc.status(item, odo, now)
     val color = when (s.level) {
-        MaintLevel.OK -> Dash.green
+        MaintLevel.OK -> Dash.dim
+        MaintLevel.SOON -> Dash.amber
+        MaintLevel.OVERDUE -> Dash.red
+    }
+    val bar = when (s.level) {
+        MaintLevel.OK -> Dash.text
         MaintLevel.SOON -> Dash.amber
         MaintLevel.OVERDUE -> Dash.red
     }
     val detail = listOfNotNull(
         s.kmLeft?.let { if (it >= 0) "%,.0f km left".format(it) else "%,.0f km overdue".format(-it) },
-        s.daysLeft?.let { if (it >= 0) "$it d left" else "${-it} d overdue" },
-    ).joinToString("  •  ")
-    DashCard(Modifier.fillMaxWidth()) {
+        s.daysLeft?.let { if (it >= 0) "$it days left" else "${-it} days overdue" },
+    ).joinToString("  ·  ")
+    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(item.name, color = Dash.text, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-                Text(detail, color = color, fontSize = 14.sp)
+                Text(item.name, color = Dash.text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                Text(detail, color = color, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
             }
-            TextButton(onClick = onDone) { Text("Done", fontSize = 16.sp) }
-            TextButton(onClick = onDelete) { Text("✕", color = Dash.dim, fontSize = 16.sp) }
+            PillButton("Done", onDone, small = true)
+            TextAction("×", onDelete, color = Dash.faint)
         }
-        LinearProgressIndicator(
-            progress = { s.used.coerceIn(0f, 1f) },
-            color = color, trackColor = Dash.track, gapSize = 0.dp, drawStopIndicator = {},
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        )
+        // slim progress: neutral until it needs attention
+        Box(Modifier.fillMaxWidth().padding(top = 10.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(Dash.line)) {
+            Box(Modifier.fillMaxWidth(s.used.coerceIn(0f, 1f)).height(3.dp).background(bar))
+        }
     }
 }
 
 @Composable
 private fun FuelRow(f: FuelLog, onDelete: () -> Unit) {
-    DashCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "%.1f L  @ $%.3f/L  =  $%.2f".format(f.litres, f.pricePerLitre, f.litres * f.pricePerLitre),
-                    color = Dash.text, fontSize = 17.sp,
-                )
-                Text(
-                    Instant.ofEpochMilli(f.dateMs).atZone(ZoneId.systemDefault()).format(shortDate) +
-                        "  •  %,.0f km".format(f.odometerKm) + if (f.fullTank) "" else "  •  partial",
-                    color = Dash.dim, fontSize = 13.sp,
-                )
-            }
-            TextButton(onClick = onDelete) { Text("✕", color = Dash.dim, fontSize = 16.sp) }
+    Row(Modifier.fillMaxWidth().padding(start = 18.dp, top = 12.dp, bottom = 12.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                "%.1f L  ·  $%.3f/L".format(f.litres, f.pricePerLitre),
+                color = Dash.text, fontSize = 16.sp,
+            )
+            Text(
+                Instant.ofEpochMilli(f.dateMs).atZone(ZoneId.systemDefault()).format(shortDate) +
+                    "  ·  %,.0f km".format(f.odometerKm) + if (f.fullTank) "" else "  ·  partial",
+                color = Dash.dim, fontSize = 13.sp,
+            )
         }
+        Text("$%.2f".format(f.litres * f.pricePerLitre), color = Dash.text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        TextAction("×", onDelete, color = Dash.faint)
     }
-}
-
-@Composable
-private fun NumberDialog(title: String, initial: String, onDismiss: () -> Unit, onOk: (Double) -> Unit) {
-    var v by remember { mutableStateOf(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { NumField("Value", v) { v = it } },
-        confirmButton = { TextButton(onClick = { v.toDoubleOrNull()?.let(onOk) }) { Text("OK") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }
 
 @Composable
@@ -202,8 +215,15 @@ private fun NumField(label: String, value: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value, onValueChange = onChange, label = { Text(label) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        colors = dashFieldColors(), shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+@Composable
+private fun NumberDialog(title: String, initial: String, onDismiss: () -> Unit, onOk: (Double) -> Unit) {
+    var v by remember { mutableStateOf(initial) }
+    DashDialog(title, onDismiss, "OK", { v.toDoubleOrNull()?.let(onOk) }) { NumField("Value", v) { v = it } }
 }
 
 @Composable
@@ -211,25 +231,18 @@ private fun AddMaintDialog(onDismiss: () -> Unit, onOk: (String, Int?, Int?) -> 
     var name by remember { mutableStateOf("") }
     var km by remember { mutableStateOf("") }
     var days by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add maintenance item") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                NumField("Every … km (optional)", km) { km = it }
-                NumField("Every … days (optional)", days) { days = it }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val m = km.toDoubleOrNull()?.roundToInt()
-                val d = days.toDoubleOrNull()?.roundToInt()
-                if (name.isNotBlank() && (m != null || d != null)) onOk(name.trim(), m, d)
-            }) { Text("Add") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    DashDialog("Add maintenance item", onDismiss, "Add", {
+        val k = km.toDoubleOrNull()?.roundToInt()
+        val d = days.toDoubleOrNull()?.roundToInt()
+        if (name.isNotBlank() && (k != null || d != null)) onOk(name.trim(), k, d)
+    }) {
+        OutlinedTextField(
+            name, { name = it }, label = { Text("Name") }, singleLine = true,
+            colors = dashFieldColors(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth(),
+        )
+        NumField("Every ... km (optional)", km) { km = it }
+        NumField("Every ... days (optional)", days) { days = it }
+    }
 }
 
 @Composable
@@ -238,26 +251,16 @@ private fun AddFuelDialog(odo: Double, onDismiss: () -> Unit, onOk: (Double, Dou
     var price by remember { mutableStateOf("") }
     var o by remember { mutableStateOf(odo.roundToInt().toString()) }
     var full by remember { mutableStateOf(true) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add fill-up") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumField("Litres", litres) { litres = it }
-                NumField("Price per litre ($/L)", price) { price = it }
-                NumField("Odometer (km)", o) { o = it }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(full, { full = it })
-                    Text("Filled the tank", color = Color.Unspecified)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val g = litres.toDoubleOrNull(); val p = price.toDoubleOrNull(); val od = o.toDoubleOrNull()
-                if (g != null && p != null && od != null && g > 0) onOk(g, p, od, full)
-            }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    DashDialog("Add fill-up", onDismiss, "Save", {
+        val l = litres.toDoubleOrNull(); val p = price.toDoubleOrNull(); val od = o.toDoubleOrNull()
+        if (l != null && p != null && od != null && l > 0) onOk(l, p, od, full)
+    }) {
+        NumField("Litres", litres) { litres = it }
+        NumField("Price per litre ($/L)", price) { price = it }
+        NumField("Odometer (km)", o) { o = it }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(full, { full = it }, colors = dashCheckboxColors())
+            Text("Filled the tank", color = Dash.text)
+        }
+    }
 }

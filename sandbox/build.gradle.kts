@@ -16,6 +16,8 @@ kotlin {
     sourceSets["main"].kotlin.srcDir("../shared/src/main/kotlin")
 }
 
+sourceSets["main"].resources.srcDir("../shared/res") // font/geist_*.ttf
+
 dependencies {
     implementation(compose.desktop.currentOs)
     // Bundle the Windows renderer too so the uber jar built on any OS runs on Windows.

@@ -24,8 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,23 +90,24 @@ fun TruckDashRoot(
                     DashTab.Health -> if (locked) ParkedOnly(live.speedKmh) else HealthScreen(health)
                 }
             }
-            Row(Modifier.fillMaxWidth().height(64.dp)) {
+            Hairline()
+            Row(Modifier.fillMaxWidth().height(60.dp)) {
                 DashTab.entries.forEach { t ->
                     val selected = t == tab
+                    val disabled = locked && t != DashTab.Live
                     Box(
-                        Modifier.weight(1f).fillMaxSize()
-                            .background(if (selected) Dash.card else Dash.bg)
-                            .clickable { if (!(locked && t != DashTab.Live)) tab = t },
+                        Modifier.weight(1f).fillMaxSize().clickable { if (!disabled) tab = t },
                         contentAlignment = Alignment.Center,
                     ) {
+                        if (selected) Box(Modifier.align(Alignment.TopCenter).width(28.dp).height(2.dp).background(Dash.text))
                         Text(
                             t.label,
                             color = when {
-                                selected -> Dash.cyan
-                                locked && t != DashTab.Live -> Dash.track
-                                else -> Dash.dim
+                                selected -> Dash.text
+                                disabled -> Color(0xFF3A3A40)
+                                else -> Dash.faint
                             },
-                            fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.6.sp,
                         )
                     }
                 }
@@ -115,15 +119,21 @@ fun TruckDashRoot(
 @Composable
 private fun ParkedOnly(kmh: Float) {
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        Modifier.fillMaxSize().padding(40.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("PARKED ONLY", color = Dash.amber, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-        Text("${kmh.roundToInt()} km/h", color = Dash.text, fontSize = 22.sp, modifier = Modifier.padding(top = 8.dp))
+        Dot(Dash.amber, 9)
         Text(
-            "Stop to view this screen, or enable Passenger mode in Health settings.",
-            color = Dash.dim, fontSize = 16.sp, modifier = Modifier.padding(top = 12.dp),
+            "Available when parked", color = Dash.text, fontSize = 24.sp, fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(top = 18.dp),
+        )
+        Text(
+            "${kmh.roundToInt()} km/h", color = Dash.dim, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            "Stop to view this screen, or turn on Passenger mode in Health.",
+            color = Dash.faint, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 18.dp),
         )
     }
 }
