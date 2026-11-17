@@ -50,6 +50,8 @@ data class Settings(
     val distTotalM: Double = 0.0,
     /** [distTotalM] at the moment the odometer was set. Odometer = odoBaseKm + (distTotalM - odoBaseTotalM) / 1000. */
     val odoBaseTotalM: Double = 0.0,
+    /** Optional "Driving lock": when on, Trips/Health lock above 5 km/h (unless passenger mode). Off by default. */
+    val drivingLock: Boolean = false,
     /** Passenger mode disables the "parked only" lock on the Trips/Health tabs. */
     val passengerMode: Boolean = false,
     /** Extra yaw correction (deg) if the unit is mounted rotated so forward is not screen -Z. */

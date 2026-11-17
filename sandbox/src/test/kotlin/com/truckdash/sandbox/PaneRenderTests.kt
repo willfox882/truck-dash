@@ -13,6 +13,10 @@ import com.truckdash.ui.Dash
 import com.truckdash.ui.DashTab
 import com.truckdash.ui.DesignScale
 import com.truckdash.ui.ParkedOnly
+import com.truckdash.ui.health.HealthPresenter
+import com.truckdash.ui.health.ModeSettingsCard
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import com.truckdash.ui.TruckDashRoot
 import com.truckdash.ui.TruckDashTheme
 import org.junit.Assert.assertTrue
@@ -98,6 +102,20 @@ class PaneRenderTests {
     @Test fun trips() = all("trips", DashTab.Trips)
     @Test fun health() = all("health", DashTab.Health)
     @Test fun tripDetail() = all("trip-detail", DashTab.Trips, hardTrip)
+
+    @Test fun healthSwitches() {
+        for ((shape, size) in shapes) {
+            val (w, h) = size
+            val px = render(w, h) {
+                DesignScale {
+                    Column(Modifier.fillMaxSize().background(Dash.bg).padding(16.dp)) {
+                        ModeSettingsCard(session.repo.settings.value, HealthPresenter(session.repo, kotlinx.coroutines.MainScope()))
+                    }
+                }
+            }
+            check("health-switches@$shape", px, w, h, null)
+        }
+    }
 
     @Test fun parkedOnly() {
         for ((shape, size) in shapes) {

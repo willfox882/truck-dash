@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.truckdash.core.PaneTracker
+import com.truckdash.core.SpeedLock
 import com.truckdash.repo.DashRepository
 import com.truckdash.ui.health.HealthPresenter
 import com.truckdash.ui.health.HealthScreen
@@ -42,9 +43,6 @@ import com.truckdash.ui.trips.TripsScreen
 import kotlin.math.roundToInt
 
 enum class DashTab(val label: String) { Live("LIVE"), Trips("TRIPS"), Health("HEALTH") }
-
-/** Speed (km/h) above which Trips/Health are locked (unless passenger mode). */
-const val LOCK_KMH = 5f
 
 /** Platform hook for the system back button. Android supplies a BackHandler; default is a no-op. */
 val LocalBackHook = staticCompositionLocalOf<@Composable (enabled: Boolean, onBack: () -> Unit) -> Unit> {
@@ -80,7 +78,7 @@ fun TruckDashRoot(
     val live by repo.live.collectAsState()
     val settings by repo.settings.collectAsState()
     var tab by remember { mutableStateOf(initialTab) }
-    val locked = live.speedKmh > LOCK_KMH && !settings.passengerMode
+    val locked = SpeedLock.isLocked(live.speedKmh, settings.drivingLock, settings.passengerMode)
 
     LaunchedEffect(locked) { if (locked) tab = DashTab.Live }
     LaunchedEffect(initialTripId) { initialTripId?.let { trips.open(it) } }
@@ -138,7 +136,7 @@ internal fun ParkedOnly(kmh: Float) {
         )
         if (!p.tiny) {
             Text(
-                "Stop to view this screen, or turn on Passenger mode in Health.",
+                "Stop to view this screen, or turn on Passenger mode or turn off Driving lock in Health.",
                 color = Dash.faint, fontSize = pane(14.sp, 13.sp), textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = pane(18.dp, 8.dp)),
             )

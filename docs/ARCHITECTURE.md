@@ -15,6 +15,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 |---|---|
 | `Geo.kt` | unit factors (m/s→km/h, m→km), haversine, compass label |
 | `PaneSpec.kt` | `PaneSpec(heightDp, compact, tiny)`, `PaneRules` (440 dp design width, compact < 620, tiny < 330, +/- 24 hysteresis), `PaneTracker`; tests in `PaneSpecTests.kt` |
+| `SpeedLock.kt` | `LOCK_KMH` (5) + `SpeedLock.isLocked(speed, lockEnabled, passenger)`: pure rule for the optional Driving lock (default off); tests in `SpeedLockTests.kt` |
 | `GForce.kt` | `Vec3`, `toVehicle(gravity, linear, yaw)` → `VehicleG` (long/lat/vert g in vehicle frame) |
 | `HarshEventDetector.kt` | hard accel/brake/corner: must be sustained 300 ms, then re-arm below 70 % of threshold |
 | `GravityTracker.kt` | accelerometer-only fallback: slow, steady-only gravity filter (sample-rate independent) |
@@ -35,11 +36,11 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | File | Purpose |
 |---|---|
 | `Pane.kt` | `LocalPaneSpec` + `pane(full, compact, tiny)` helper (provided by `DesignScale`) |
-| `TruckDashRoot.kt` | tab shell, speed lock ("PARKED ONLY"), `DesignScale` (layout as 440 dp wide at any density), `LocalBackHook` |
+| `TruckDashRoot.kt` | tab shell, optional speed lock ("PARKED ONLY", only when the Driving lock setting is on), `DesignScale` (layout as 440 dp wide at any density), `LocalBackHook` |
 | `Theme.kt`, `Components.kt`, `Format.kt` | design tokens (`Dash`, `DashFonts`), theme; shared components (`DashCard`, `StatGrid`, `Numeral`, `PillButton`, `TextAction`, `DashDialog`, `Hairline`, `Label`); duration formatting |
 | `live/LiveScreen.kt`, `live/Gauges.kt` | portrait live layout; `SpeedGauge`, `CompassRose`, `GBall` (Canvas, hairline style) |
 | `trips/TripsScreen.kt`, `trips/TripsPresenter.kt` | list + monthly chart + detail (route, speed/elevation, events) |
-| `health/HealthScreen.kt`, `health/HealthPresenter.kt` | odometer, maintenance, fuel (L/100 km), passenger-mode switch, dialogs |
+| `health/HealthScreen.kt`, `health/HealthPresenter.kt` | odometer, maintenance, fuel (L/100 km), Driving lock + passenger-mode switches, dialogs |
 | `charts/Charts.kt` | `LineChart`, `BarChart`, `RouteMap` |
 
 ## app/ (Android only)

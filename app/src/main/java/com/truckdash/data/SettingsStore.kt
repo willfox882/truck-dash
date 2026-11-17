@@ -15,6 +15,7 @@ class SettingsStore(ctx: Context) {
             odoBaseSetMs = prefs.getLong("odoBaseSetMs", 0L),
             distTotalM = prefs.getDouble("distTotalM"),
             odoBaseTotalM = prefs.getDouble("odoBaseTotalM"),
+            drivingLock = prefs.getBoolean("drivingLock", false),
             passengerMode = prefs.getBoolean("passengerMode", false),
             mountYawDeg = prefs.getFloat("mountYawDeg", 0f),
         ),
@@ -41,6 +42,7 @@ class SettingsStore(ctx: Context) {
             .putLong("odoBaseSetMs", s.odoBaseSetMs)
             .putLong("distTotalM", java.lang.Double.doubleToRawLongBits(s.distTotalM))
             .putLong("odoBaseTotalM", java.lang.Double.doubleToRawLongBits(s.odoBaseTotalM))
+            .putBoolean("drivingLock", s.drivingLock)
             .putBoolean("passengerMode", s.passengerMode)
             .putFloat("mountYawDeg", s.mountYawDeg)
             .apply()

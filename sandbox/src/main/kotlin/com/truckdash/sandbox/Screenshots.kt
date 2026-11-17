@@ -16,6 +16,10 @@ import com.truckdash.ui.DashDialog
 import com.truckdash.ui.DashTab
 import com.truckdash.ui.DesignScale
 import com.truckdash.ui.ParkedOnly
+import com.truckdash.ui.health.HealthPresenter
+import com.truckdash.ui.health.ModeSettingsCard
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import com.truckdash.ui.dashFieldColors
 import com.truckdash.ui.TruckDashRoot
 import com.truckdash.ui.TruckDashTheme
@@ -56,7 +60,7 @@ fun main(args: Array<String>) {
     val hardTrip = session.store.tripsFlow.value.firstOrNull { it.harshBrake > 0 }?.id
     shot("trips", 810, 2000, DashTab.Trips)
     shot("trip-detail", 810, 2300, DashTab.Trips, hardTrip)
-    shot("health", 810, 2300, DashTab.Health)
+    shot("health", 810, 3000, DashTab.Health)
 
     // 3) parked & idle live screen
     val idle = SandboxSession.create(seedHistory = false)
@@ -84,6 +88,13 @@ fun main(args: Array<String>) {
         paneShot("pane-$shape-trips", 810, h) { TruckDashRoot(session.repo, DashTab.Trips) }
         paneShot("pane-$shape-trip-detail", 810, h) { TruckDashRoot(session.repo, DashTab.Trips, hardTrip) }
         paneShot("pane-$shape-health", 810, h) { TruckDashRoot(session.repo, DashTab.Health) }
+        paneShot("pane-$shape-health-switches", 810, h) {
+            DesignScale {
+                Column(Modifier.fillMaxSize().background(Dash.bg).padding(16.dp)) {
+                    ModeSettingsCard(session.repo.settings.value, HealthPresenter(session.repo, kotlinx.coroutines.MainScope()))
+                }
+            }
+        }
         paneShot("pane-$shape-parked-only", 810, h) { DesignScale { Column(Modifier.fillMaxSize().background(Dash.bg)) { ParkedOnly(87f) } } }
         paneShot("pane-$shape-dialog", 810, h) {
             DesignScale {

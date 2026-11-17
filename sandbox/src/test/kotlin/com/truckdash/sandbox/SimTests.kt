@@ -1,6 +1,7 @@
 package com.truckdash.sandbox
 
 import com.truckdash.core.Geo
+import com.truckdash.core.SpeedLock
 import com.truckdash.engine.DriveEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -60,6 +61,23 @@ class SimTests {
         assertTrue(s.store.tripsFlow.value.all { it.endMs != null })
         assertEquals(5, s.store.maintFlow.value.size)
         assertTrue(s.store.fuelFlow.value.size >= 4)
+    }
+
+    @Test fun drivingLockIsOffByDefaultAndTogglesThroughTheRepo() {
+        val s = SandboxSession.create(seedHistory = false, nowMs = 1_700_000_000_000L)
+        s.controller.startScenario(Scenarios.cityLoop)
+        s.controller.runFor(100.0)
+        val kmh = s.engine.state.value.speedKmh
+        assertTrue("should be moving, was $kmh", kmh > 20f)
+        val st = s.repo.settings.value
+        assertFalse(st.drivingLock)
+        assertFalse(SpeedLock.isLocked(kmh, st.drivingLock, st.passengerMode))   // moving, lock off: never locked
+        s.repo.setDrivingLock(true)
+        val on = s.repo.settings.value
+        assertTrue(on.drivingLock)
+        assertTrue(SpeedLock.isLocked(kmh, on.drivingLock, on.passengerMode))
+        s.repo.setPassengerMode(true)
+        assertFalse(SpeedLock.isLocked(kmh, true, s.repo.settings.value.passengerMode))
     }
 
     @Test fun odometerSurvivesMidTripSetAndTripDeletion() = runBlocking {

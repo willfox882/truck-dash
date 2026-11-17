@@ -97,6 +97,7 @@ class SandboxRepo(private val store: MemoryStore, engine: DriveEngine) : DashRep
     }
 
     override fun setPassengerMode(on: Boolean) = store.settingsFlow.update { it.copy(passengerMode = on) }
+    override fun setDrivingLock(on: Boolean) = store.settingsFlow.update { it.copy(drivingLock = on) }
 
     override suspend fun addFuel(log: FuelLog) = store.fuelFlow.update { it + log.copy(id = store.nextId()) }
     override suspend fun deleteFuel(log: FuelLog) = store.fuelFlow.update { l -> l.filter { it.id != log.id } }

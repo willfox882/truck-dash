@@ -36,6 +36,7 @@ import com.truckdash.core.MaintLevel
 import com.truckdash.core.MaintenanceCalc
 import com.truckdash.model.FuelLog
 import com.truckdash.model.MaintItem
+import com.truckdash.model.Settings
 import com.truckdash.ui.Dash
 import com.truckdash.ui.DashCard
 import com.truckdash.ui.DashDialog
@@ -136,15 +137,7 @@ fun HealthScreen(vm: HealthPresenter, modifier: Modifier = Modifier) {
         }
 
         item {
-            DashCard(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Passenger mode", color = Dash.text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        Text("Keep Trips and Health open while driving", color = Dash.dim, fontSize = 13.sp)
-                    }
-                    Switch(settings.passengerMode, onCheckedChange = vm::setPassengerMode, colors = dashSwitchColors())
-                }
-            }
+            ModeSettingsCard(settings, vm)
             Box(Modifier.height(16.dp))
         }
     }
@@ -262,6 +255,27 @@ private fun AddFuelDialog(odo: Double, onDismiss: () -> Unit, onOk: (Double, Dou
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(full, { full = it }, colors = dashCheckboxColors())
             Text("Filled the tank", color = Dash.text)
+        }
+    }
+}
+
+@Composable
+internal fun ModeSettingsCard(settings: Settings, vm: HealthPresenter) {
+    DashCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Driving lock", color = Dash.text, fontSize = pane(17.sp, 16.sp), fontWeight = FontWeight.Medium)
+                Text("Blocks Trips and Health above 5 km/h", color = Dash.dim, fontSize = pane(13.sp, 12.sp))
+            }
+            Switch(settings.drivingLock, onCheckedChange = vm::setDrivingLock, colors = dashSwitchColors())
+        }
+        Hairline(Modifier.padding(vertical = pane(12.dp, 8.dp)))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Passenger mode", color = Dash.text, fontSize = pane(17.sp, 16.sp), fontWeight = FontWeight.Medium)
+                Text("Overrides Driving lock for passengers", color = Dash.dim, fontSize = pane(13.sp, 12.sp))
+            }
+            Switch(settings.passengerMode, onCheckedChange = vm::setPassengerMode, colors = dashSwitchColors())
         }
     }
 }

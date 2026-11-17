@@ -211,6 +211,10 @@ private fun ControlPanel(session: SandboxSession, paneH: Float, onPaneH: (Float)
             Switch(settings.passengerMode, onCheckedChange = session.repo::setPassengerMode, colors = dashSwitchColors())
             Text("  Passenger mode (no speed lock)", color = Dash.text, fontSize = 13.sp)
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(settings.drivingLock, onCheckedChange = session.repo::setDrivingLock, colors = dashSwitchColors())
+            Text("  Driving lock (Trips/Health above 5 km/h)", color = Dash.text, fontSize = 13.sp)
+        }
         PillButton("Reset sandbox data", onReset, small = true)
 
         HorizontalDivider(color = Dash.line)

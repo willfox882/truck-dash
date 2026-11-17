@@ -2,9 +2,10 @@
 
 _Update this file at the end of every session. Newest entry on top of "Log"._
 
-## Status: v0.5.0 (pane-aware layouts for split-screen) - builds, tests pass (app + sandbox), lint clean. Desktop sandbox verified by screenshots at full / half / strip. **Never run on a real truck/head unit yet.**
+## Status: v0.5.1 (Driving lock is now an optional setting, off by default; v0.5.0 pane-aware layouts for split-screen) - builds, tests pass (app + sandbox), lint clean. Desktop sandbox verified by screenshots at full / half / strip. **Never run on a real truck/head unit yet.**
 
 ## Done
+- **v0.5.1**: the speed lock is now an optional setting "Driving lock" (`Settings.drivingLock`, persisted in `SettingsStore` as `drivingLock`, `DashRepository.setDrivingLock`), **OFF by default** so everything is tappable at any speed (owner wants to tap in at a red light). Switch on the Health tab above Passenger mode (helper "Blocks Trips and Health above 5 km/h", pane-aware sizes). Turning it on restores the old behaviour exactly (Trips/Health blocked above 5 km/h, Passenger mode overrides). Rule extracted to pure `core/SpeedLock.kt` (`SpeedLock.isLocked`, `LOCK_KMH` moved there); with the setting off `ParkedOnly` is never shown and tabs never auto-switch to Live. Sandbox control panel has a Driving lock switch next to Passenger mode. Tests: `SpeedLockTests` (default off, off never locks, on locks above 5 km/h, passenger overrides) and a sandbox repo test. Passenger mode stays visible always. The two switches live in `ModeSettingsCard` (HealthScreen.kt), also rendered standalone as `pane-{full,half,strip}-health-switches.png` and checked in `PaneRenderTests.healthSwitches` (the Health list scrolls, so the card is below the fold in the plain Health shots).
 - **v0.5.0**: pane-aware layouts for top/bottom split-screen. `core/PaneSpec.kt` (`PaneSpec(heightDp, compact, tiny)`, `PaneRules`, `PaneTracker`) is computed inside `DesignScale` from the real aspect ratio (height dp = 440 * h / w) and exposed as `LocalPaneSpec` (+ `pane(full, compact, tiny)` helper in `ui/Pane.kt`). Compact below 620 dp, tiny below 330 dp, hysteresis +/- 24 dp (plain thresholds on the first measurement; once off it must drop below T-24 to turn on, once on it must exceed T+24 to turn off; tiny implies compact; zero/NaN/infinite sizes fall back to the full shape). Name and thresholds are meant to be identical in Markets Board. Full-screen and quadrant panes are 9:16 so they keep today's layout unchanged.
   - Compact Live: speed arc on the left, right column has a 2x2 StatGrid (Trip, Average, Max, Grade) and a Heading + G-force numbers strip (no G-ball, numbers only: it did not fit nicely). Tiny Live: speed + unit, REC/GPS dots, Trip and Max. Numeral size follows the arc (min side), full size unchanged.
   - Other screens compact: tab bar 48 dp (tiny 40), titles 26 sp, `DashCard`/`StatGrid`/rows tighter, route map 200 dp, charts 90/80 dp (tiny 150/70/64), `ParkedOnly` compact (tiny drops the hint line), dialogs scroll and use smaller title/spacing. Lists still scroll above the tab bar (tab bar is outside the list).
@@ -22,7 +23,7 @@ _Update this file at the end of every session. Newest entry on top of "Log"._
 - LIVE tab: speed gauge (0–120), compass rose, G-ball, trip/moving/avg/max/alt/grade tiles, clock, REC + GPS status
 - TRIPS tab: list, 7d/month/all-time km, 6-month bar chart, detail (route map w/ harsh-event dots, speed + elevation charts, stats, delete)
 - HEALTH tab: GPS odometer (+ manual set), maintenance items (seeded defaults, Done/add/delete), fuel log, L/100 km avg/last/cost per 100 km + trend, passenger-mode switch
-- Speed lock on TRIPS/HEALTH above 5 km/h
+- Speed lock on TRIPS/HEALTH above 5 km/h (since v0.5.1 optional, off by default)
 
 ## Next (suggested order)
 1. **Try the desktop sandbox first** (`docs/SANDBOX.md`), then **install on the head unit and field-test** (see `docs/INSTALL.md`). Check: GPS fix, speed vs. truck speedo, g-ball direction (accel = up, right turn = right), heading, REC start/stop.
@@ -57,6 +58,7 @@ _Update this file at the end of every session. Newest entry on top of "Log"._
 - UI is laid out at a fixed 440 dp design width (`DesignScale`) because head-unit densities are unknown.
 
 ## Log
+- **2026-11-17 (v0.5.1)** - Driving lock made optional (default off).
 - **2026-11-16 (v0.5.0)** - Pane-aware (split-screen) layouts, sandbox pane selector, pane screenshots and render tests.
 - **2026-11-16 (v0.3.0)** - Metric conversion. Fable code review done and top findings fixed (v0.3.1).
 - **2026-11-15 (v0.2.0)** - Pushed v0.1.0 to GitHub (`willfox882/truck-dash`). Built the sandbox; Maven Central occasionally 429s (just retry). Skiko GL falls back to software under Xvfb (harmless).
