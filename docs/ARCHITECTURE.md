@@ -40,8 +40,8 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `DeviceSelector.kt` | picks the dongle from bonded devices (saved address, else name hints) |
 | `ClusterModels.kt` | `ClusterState`, `ClusterPhase`, `TransStage`, `GaugeSpec` + `ClusterGauges` (degC ranges and warn / critical points) |
 | `ObdSession.kt` | connect, init, poll loop, 5 s reconnect, staged trans failsafe (`StateFlow<ClusterState>`) |
-| `ClusterPresenter.kt` | runs the session only while the tab is visible and the app active; permission-once, dongle choice |
-| `ClusterPlatform.kt` | what the platform supplies: `appActive`, permission, `newLink`, `pairedDevices` |
+| `ClusterPresenter.kt` | runs the session (Mutex, one at a time) only while the tab is visible and the app active; permission ask / settings hand-off, dongle choice |
+| `ClusterPlatform.kt` | what the platform supplies: `appActive`, permission (`hasPermission`, `canRequestPermission`, `requestPermission`, `openPermissionSettings`), `newLink`, `pairedDevices` |
 | `ClusterText.kt` | failure titles / reasons and the status line strings |
 
 ## shared/.../ui
@@ -63,11 +63,11 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `service/DriveService.kt` | thin feeder: Location + Sensor callbacks → `DriveEngine`; notification; 1 s `tick` |
 | `service/BootReceiver.kt` | best-effort autostart |
 | `obd/BluetoothObdLink.kt` | RFCOMM `ObdLink` (SPP UUID, reflection channel-1 fallback, connect aborted by closing the socket on cancel, `available()` polling reads) |
-| `obd/AndroidClusterPlatform.kt` | `ClusterPlatform` for Android: BLUETOOTH_CONNECT check / request (launcher owned by `MainActivity`), activity-active flag, bonded devices |
+| `obd/AndroidClusterPlatform.kt` | process-wide `ClusterPlatform` for Android: BLUETOOTH_CONNECT check / request / app-settings hand-off (launcher + rationale via the `Host` that `MainActivity` attaches), visible flag (onStart/onStop), bonded devices |
 | `data/Entities.kt`, `Daos.kt`, `AppDatabase.kt` | Room (v2, schema in `app/schemas`) |
 | `data/Mappers.kt`, `data/Migrations.kt` | entity ↔ model; Room v1→v2 (imperial→metric) migration |
 | `data/RoomTripSink.kt`, `RoomDashRepository.kt` | engine output → Room; repository over Room + `SettingsStore` |
-| `data/SettingsStore.kt`, `AppGraph.kt` | prefs-backed settings; service locator + first-run maintenance seeding |
+| `data/SettingsStore.kt`, `AppGraph.kt` | prefs-backed settings; service locator + first-run maintenance seeding + the process-wide `ClusterPresenter` / `AndroidClusterPlatform` |
 
 ## sandbox/ (desktop) - see `docs/SANDBOX.md`
 `VehicleSim.kt` (physics + scenarios), `FakeDongle.kt` (simulated ELM327 + `SandboxClusterPlatform`), `ClusterPreview.kt` (Cluster states for shots / tests), `SimController.kt`, `MemoryStore.kt`, `Session.kt`, `SandboxApp.kt` (incl. pane-shape selector), `Main.kt`, `Screenshots.kt` (full + pane-* shots). Tests: `SimTests.kt`, `PaneRenderTests.kt` (every screen at full/half/strip), `ClusterSandboxTests.kt` (dongle scenarios through the real session).

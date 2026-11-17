@@ -7,10 +7,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Owns the [ObdSession] and decides when it runs: only while the Cluster tab is visible AND the app is active.
- * Creating one does nothing (no Bluetooth call); everything starts from [setTabVisible]. Call from the main thread.
+ * Creating one makes no platform call at all (not even reading `appActive`); everything starts from [setTabVisible].
+ * On Android one instance lives for the whole process (`AppGraph`), so the trans stage survives activity recreation.
+ * Call from the main thread.
  */
 class ClusterPresenter(
     private val platform: ClusterPlatform,
@@ -25,22 +29,32 @@ class ClusterPresenter(
 
     private var visible = false
     private var active = false
-    private var job: Job? = null // the newest run; an older cancelled one is joined before the next starts
+    private var job: Job? = null
     private var running = false
     private var permissionAsked = false
+    private var activeWatcher: Job? = null
 
-    init {
-        // follows the activity (resume / pause); a StateFlow read, not a Bluetooth call
-        scope.launch {
-            platform.appActive.collect { active = it; update() }
-        }
-    }
+    /**
+     * Only one session may ever touch the adapter. A run that was cancelled before its body started never reaches the
+     * lock, one that is running releases it only after its link is closed and the state reset, so the next run waits.
+     */
+    private val runLock = Mutex()
 
     fun setTabVisible(v: Boolean) {
         if (v == visible) return
         visible = v
+        if (v) watchActive()
         if (!v) permissionAsked = false
         update()
+    }
+
+    /** Follows the activity (visible / not); started on the first open so a hidden tab never touches the platform. */
+    private fun watchActive() {
+        if (activeWatcher != null) return
+        active = platform.appActive.value
+        activeWatcher = scope.launch {
+            platform.appActive.collect { active = it; update() }
+        }
     }
 
     private fun update() {
@@ -48,14 +62,10 @@ class ClusterPresenter(
         if (want && !running) {
             if (!platform.hasPermission() && !permissionAsked) {
                 permissionAsked = true
-                platform.requestPermission { granted -> if (granted) session.retryNow() }
+                askPermission(userInitiated = false)
             }
-            val previous = job
             running = true
-            job = scope.launch(ioDispatcher) {
-                previous?.join() // the old run must have closed its socket and reset the state first
-                session.run()
-            }
+            job = scope.launch(ioDispatcher) { runLock.withLock { session.run() } }
         } else if (!want && running) {
             stopJob()
         }
@@ -66,8 +76,34 @@ class ClusterPresenter(
         running = false
     }
 
-    /** The Retry button. */
-    fun retry() = session.retryNow()
+    /**
+     * Dialog when Android still shows one; otherwise (denied before, no rationale) the failure text says so and the Retry
+     * button opens the app's settings ([userInitiated]; never automatically when the tab merely opens).
+     */
+    private fun askPermission(userInitiated: Boolean) {
+        if (platform.canRequestPermission()) {
+            session.setPermissionViaSettings(false)
+            platform.requestPermission { granted ->
+                if (granted) {
+                    session.setPermissionViaSettings(false)
+                    session.retryNow()
+                } else {
+                    session.setPermissionViaSettings(!platform.canRequestPermission())
+                }
+            }
+        } else {
+            session.setPermissionViaSettings(true)
+            if (userInitiated) platform.openPermissionSettings()
+        }
+    }
+
+    /** The Retry button: asks for a missing permission again (or opens the settings), then skips the reconnect wait. */
+    fun retry() {
+        if (visible) {
+            if (!platform.hasPermission()) askPermission(userInitiated = true) else session.setPermissionViaSettings(false)
+        }
+        session.retryNow()
+    }
 
     fun pairedDevices(): List<PairedDevice> = platform.pairedDevices()
 

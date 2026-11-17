@@ -53,9 +53,15 @@ class ObdSession(
         wake.trySend(Unit)
     }
 
+    /** Presenter hint for the failure text: the permission can only be given from the app's settings page. */
+    fun setPermissionViaSettings(v: Boolean) {
+        _state.update { if (it.permissionViaSettings == v) it else it.copy(permissionViaSettings = v) }
+    }
+
     suspend fun run() {
         try {
             while (true) {
+                while (wake.tryReceive().isSuccess) { /* a stale Retry from before this attempt must not cut the next wait */ }
                 val link = newLink()
                 try {
                     attempt(link)
@@ -98,7 +104,8 @@ class ObdSession(
         step = Step.Init
         _state.update { it.copy(phase = ClusterPhase.Initializing, failure = null, retrying = false, device = link.deviceName) }
         for (c in ObdProtocol.INIT) {
-            link.exchange(c.command, c.timeoutMs)
+            val reply = link.exchange(c.command, c.timeoutMs)
+            if (!ObdProtocol.initReplyOk(c.command, reply)) throw ObdLinkException(ObdFailure.InitFailed, "${c.command} not accepted")
             delay(initPauseMs)
         }
         step = Step.Poll
@@ -135,7 +142,7 @@ class ObdSession(
                 misses[id] = n
                 if (n >= STALE_AFTER_MISSES) vals.remove(id)
             }
-            s.copy(values = vals, transStage = stage)
+            s.copy(values = vals, transStage = stage, transConfirmed = transConfirmed)
         }
     }
 
@@ -151,7 +158,9 @@ class ObdSession(
         val raw = if (stage == TransStage.Physical) {
             link.exchange(ObdProtocol.ADDRESS_TCM, ObdProtocol.COMMAND_TIMEOUT_MS)
             val r = link.exchange(pid.command, ObdProtocol.COMMAND_TIMEOUT_MS)
-            link.exchange(ObdProtocol.ADDRESS_BROADCAST, ObdProtocol.COMMAND_TIMEOUT_MS) // restore broadcast for mode 01
+            val restored = link.exchange(ObdProtocol.ADDRESS_BROADCAST, ObdProtocol.COMMAND_TIMEOUT_MS) // restore broadcast for mode 01
+            // still addressed to the TCM would make every mode 01 PID miss: drop the connection and start clean (ATZ)
+            if (!ObdProtocol.headerReplyOk(restored)) throw ObdLinkException(ObdFailure.LinkLost, "ATSH7DF not accepted")
             r
         } else {
             link.exchange(pid.command, ObdProtocol.COMMAND_TIMEOUT_MS)

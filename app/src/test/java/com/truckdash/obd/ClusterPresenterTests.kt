@@ -2,7 +2,13 @@ package com.truckdash.obd
 
 import com.truckdash.model.Settings
 import com.truckdash.ui.DashTab
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.InternalCoroutinesApi
+import kotlinx.coroutines.Runnable
+import kotlinx.coroutines.test.TestDispatcher
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -26,14 +32,24 @@ private class FakePlatform(permission: Boolean = true, active: Boolean = true) :
     val addresses = mutableListOf<String?>()
     val log = mutableListOf<String>()
     var failure: ObdFailure? = null
+    var canRequest = true
+    var settingsOpened = 0
+    var calls = 0
+    var maxLive = 0
 
-    override fun hasPermission() = permission
-    override fun requestPermission(onResult: (Boolean) -> Unit) { permissionRequests++; pendingResult = onResult }
+    override fun hasPermission(): Boolean { calls++; return permission }
+    override fun canRequestPermission(): Boolean { calls++; return canRequest }
+    override fun openPermissionSettings() { calls++; settingsOpened++ }
+    override fun requestPermission(onResult: (Boolean) -> Unit) { calls++; permissionRequests++; pendingResult = onResult }
     override fun newLink(preferredAddress: String?): ObdLink {
+        calls++
         addresses += preferredAddress
-        return ScriptLink(log, failure, 0) { healthyReply(it) }.also { links += it }
+        return ScriptLink(log, failure, 0) { cmd ->
+            maxLive = maxOf(maxLive, links.count { it.opened && !it.closed })
+            healthyReply(cmd)
+        }.also { links += it }
     }
-    override fun pairedDevices() = listOf(PairedDevice("OBDII", "BB:11"))
+    override fun pairedDevices(): List<PairedDevice> { calls++; return listOf(PairedDevice("OBDII", "BB:11")) }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -63,6 +79,15 @@ class ClusterPresenterTests {
         assertTrue(p.links.isEmpty())
         assertEquals(0, p.permissionRequests)
         assertTrue(p.log.isEmpty())
+    }
+
+    @Test fun creatingAndNeverOpeningMakesNoPlatformCallAtAll() = runTest {
+        val p = FakePlatform(permission = false)
+        val vm = presenter(p)
+        advanceTimeBy(60_000); runCurrent()
+        vm.setTabVisible(false)
+        p.activeFlow.value = false; runCurrent(); p.activeFlow.value = true; runCurrent()
+        assertEquals(0, p.calls)
     }
 
     @Test fun neverShownMeansNoLinkEvenWhileTheAppIsActive() = runTest {
@@ -123,6 +148,42 @@ class ClusterPresenterTests {
         assertEquals(1, p.links.count { !it.closed })
     }
 
+    /**
+     * Runs queued tasks newest first, like a busy multi-threaded pool can: a job cancelled before its body started
+     * completes before the older run that is still closing its link. Delays are the test scheduler's.
+     */
+    @OptIn(InternalCoroutinesApi::class)
+    private class NewestFirstDispatcher(private val inner: TestDispatcher) : CoroutineDispatcher(), Delay by inner {
+        private val pending = ArrayDeque<Runnable>()
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            pending.addLast(block)
+            inner.dispatch(context, Runnable { while (pending.isNotEmpty()) pending.removeLast().run() })
+        }
+    }
+
+    @Test fun cancelledBeforeStartNeverLetsTwoSessionsOverlap() = runTest {
+        for (reverse in listOf(false, true)) {
+            val p = FakePlatform()
+            val io = StandardTestDispatcher(testScheduler)
+            val vm = ClusterPresenter(
+                p, MutableStateFlow(Settings()), {}, backgroundScope,
+                if (reverse) NewestFirstDispatcher(io) else io,
+            )
+            vm.setTabVisible(true)
+            advanceTimeBy(700); runCurrent()                       // session 1 is live
+            assertEquals(ClusterPhase.Live, vm.state.value.phase)
+            // flip WITHOUT running anything in between: the middle jobs are cancelled before their body starts
+            vm.setTabVisible(false); vm.setTabVisible(true); vm.setTabVisible(false); vm.setTabVisible(true)
+            vm.setTabVisible(false); vm.setTabVisible(true)
+            advanceTimeBy(2_000); runCurrent()
+            assertEquals("reverse=$reverse", ClusterPhase.Live, vm.state.value.phase)
+            assertEquals("reverse=$reverse", 1, p.links.count { !it.closed })
+            assertEquals("reverse=$reverse", 1, p.maxLive)
+            vm.setTabVisible(false); runCurrent()
+            assertEquals(0, p.links.count { !it.closed })
+        }
+    }
+
     // ---- permission -----------------------------------------------------------------------------------------------------
 
     @Test fun permissionIsRequestedOnlyWhenTheTabIsOpened() = runTest {
@@ -150,6 +211,50 @@ class ClusterPresenterTests {
         advanceTimeBy(700); runCurrent()
         assertEquals(2, p.links.size)
         assertEquals(ClusterPhase.Live, vm.state.value.phase)
+    }
+
+    @Test fun retryAfterADenialAsksAgainWhileTheSystemStillShowsTheDialog() = runTest {
+        val p = FakePlatform(permission = false)
+        p.failure = ObdFailure.PermissionNeeded
+        val vm = presenter(p)
+        vm.setTabVisible(true); runCurrent()
+        assertEquals(1, p.permissionRequests)
+        p.pendingResult!!(false); runCurrent()                  // user said no, rationale still possible
+        assertFalse(vm.state.value.permissionViaSettings)
+        vm.retry(); runCurrent()
+        assertEquals(2, p.permissionRequests)
+        assertEquals(0, p.settingsOpened)
+    }
+
+    @Test fun retryOpensTheAppSettingsWhenAndroidWillNotAskAgain() = runTest {
+        val p = FakePlatform(permission = false)
+        p.failure = ObdFailure.PermissionNeeded
+        val vm = presenter(p)
+        vm.setTabVisible(true); runCurrent()
+        p.canRequest = false                                    // denied and "don't ask again"
+        p.pendingResult!!(false); runCurrent()
+        assertTrue(vm.state.value.permissionViaSettings)
+        val reason = ClusterText.reason(vm.state.value.failure!!, vm.state.value.permissionViaSettings)
+        assertTrue(reason, reason.contains("settings"))
+        assertEquals(0, p.settingsOpened)                       // never opened behind the user's back
+        vm.retry(); runCurrent()
+        assertEquals(1, p.settingsOpened)
+        assertEquals(1, p.permissionRequests)                   // no dialog attempt that cannot show
+        p.permission = true; p.failure = null                   // allowed in settings, back in the app
+        vm.retry(); runCurrent(); advanceTimeBy(700); runCurrent()
+        assertEquals(ClusterPhase.Live, vm.state.value.phase)
+        assertEquals(1, p.settingsOpened)
+    }
+
+    @Test fun openingTheTabWithAPermanentDenialSaysSoWithoutOpeningSettings() = runTest {
+        val p = FakePlatform(permission = false)
+        p.failure = ObdFailure.PermissionNeeded
+        p.canRequest = false
+        val vm = presenter(p)
+        vm.setTabVisible(true); runCurrent()
+        assertTrue(vm.state.value.permissionViaSettings)
+        assertEquals(0, p.permissionRequests)
+        assertEquals(0, p.settingsOpened)
     }
 
     // ---- states and reasons ---------------------------------------------------------------------------------------------
@@ -186,6 +291,10 @@ class ClusterPresenterTests {
         assertEquals("Showing coolant temp instead", ClusterText.status(live.copy(transStage = TransStage.Fallback)).text)
         assertEquals(ClusterText.Tone.Caution, ClusterText.status(live.copy(transStage = TransStage.Fallback)).tone)
         assertEquals("Connecting to the OBD dongle", ClusterText.status(ClusterState(phase = ClusterPhase.Connecting)).text)
+        // once the physical stage has answered it is just a live truck
+        val confirmed = live.copy(transStage = TransStage.Physical, transConfirmed = true, device = "V-LINK")
+        assertEquals("Live · V-LINK", ClusterText.status(confirmed).text)
+        assertEquals(ClusterText.Tone.Ok, ClusterText.status(confirmed).tone)
     }
 
     // ---- dongle choice --------------------------------------------------------------------------------------------------
@@ -220,8 +329,11 @@ class ClusterPresenterTests {
 class ClusterGaugeSpecTests {
     @Test fun temperaturesAreCelsiusWithSensibleRangesAndWarnPoints() {
         assertEquals("°C", ClusterGauges.TRANS.unit)
-        assertEquals(118f, ClusterGauges.TRANS.warn!!, 0f)
+        assertEquals(116f, ClusterGauges.TRANS.warn!!, 0f)       // original 240 F
         assertEquals(118f, ClusterGauges.COOLANT.warn!!, 0f)
+        assertEquals(54f, ClusterGauges.INTAKE.warn!!, 0f)       // original 130 F
+        assertEquals(-40f, ClusterGauges.INTAKE.min, 0f)
+        assertEquals(80f, ClusterGauges.INTAKE.max, 0f)
         assertEquals("°C", ClusterGauges.INTAKE.unit)
         for (g in listOf(ClusterGauges.TRANS, ClusterGauges.COOLANT, ClusterGauges.INTAKE)) {
             assertTrue("${g.label} range", g.max <= 150f && g.min >= -40f && g.max > g.min)
@@ -233,7 +345,10 @@ class ClusterGaugeSpecTests {
         val t = ClusterGauges.TRANS
         assertEquals(GaugeSpec.Level.None, t.level(null))
         assertEquals(GaugeSpec.Level.Ok, t.level(90f))
-        assertEquals(GaugeSpec.Level.Warn, t.level(118f))
+        assertEquals(GaugeSpec.Level.Ok, t.level(115f))
+        assertEquals(GaugeSpec.Level.Warn, t.level(116f))
+        assertEquals(GaugeSpec.Level.Warn, ClusterGauges.INTAKE.level(54f))
+        assertEquals(GaugeSpec.Level.Ok, ClusterGauges.INTAKE.level(30f))
         assertEquals(GaugeSpec.Level.Critical, t.level(131f))
         assertEquals(GaugeSpec.Level.Ok, ClusterGauges.THROTTLE.level(100f))   // no thresholds: never coloured
         assertEquals(GaugeSpec.Level.Warn, ClusterGauges.LOAD.level(95f))

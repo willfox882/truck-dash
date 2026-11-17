@@ -15,8 +15,8 @@ android {
         applicationId = "com.truckdash"
         minSdk = 26
         targetSdk = 34
-        versionCode = 600
-        versionName = "0.6.0"
+        versionCode = 601
+        versionName = "0.6.1"
     }
 
     // The container's standard debug key is committed (app/debug.keystore) so every build installs over earlier ones.

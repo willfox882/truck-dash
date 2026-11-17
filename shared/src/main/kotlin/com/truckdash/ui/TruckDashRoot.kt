@@ -83,12 +83,15 @@ fun TruckDashRoot(
     initialTab: DashTab = DashTab.Live,
     initialTripId: Long? = null,
     cluster: ClusterPlatform? = null,
+    clusterPresenter: ClusterPresenter? = null,
 ) {
     val scope = rememberCoroutineScope()
     val trips = remember(repo) { TripsPresenter(repo, scope) }
     val health = remember(repo) { HealthPresenter(repo, scope) }
     // inert until the Cluster tab is opened: constructing it makes no Bluetooth call
-    val clusterVm = remember(repo, cluster) { cluster?.let { ClusterPresenter(it, repo.settings, repo::setObdAddress, scope) } }
+    // Android passes the process-wide [clusterPresenter] (the trans stage survives activity recreation); the sandbox passes
+    // only a platform and gets a presenter scoped to this composition.
+    val clusterVm = clusterPresenter ?: remember(repo, cluster) { cluster?.let { ClusterPresenter(it, repo.settings, repo::setObdAddress, scope) } }
     val live by repo.live.collectAsState()
     val settings by repo.settings.collectAsState()
     var tab by remember { mutableStateOf(initialTab) }
@@ -112,7 +115,7 @@ fun TruckDashRoot(
                     DashTab.Live -> LiveScreen(live)
                     DashTab.Trips -> if (locked) ParkedOnly(live.speedKmh) else TripsScreen(trips)
                     DashTab.Health -> if (locked) ParkedOnly(live.speedKmh) else HealthScreen(health)
-                    DashTab.Cluster -> clusterVm?.let { ClusterScreen(it) }
+                    DashTab.Cluster -> clusterVm?.let { ClusterScreen(it, locked = locked) }
                 }
             }
             Hairline()

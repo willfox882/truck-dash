@@ -16,6 +16,15 @@ interface ClusterPlatform {
     /** Asks the user. [onResult] is called with the answer; only used when [hasPermission] is false. */
     fun requestPermission(onResult: (Boolean) -> Unit)
 
+    /**
+     * False when the system will not show the permission dialog any more (denied before, no rationale): the only way
+     * left is the app's settings page ([openPermissionSettings]). True where asking can still work.
+     */
+    fun canRequestPermission(): Boolean
+
+    /** Opens the system settings page of this app so the user can allow the permission by hand. Never throws. */
+    fun openPermissionSettings()
+
     /** A fresh, unopened link. [preferredAddress] is the user's saved dongle (null = pick automatically by name). */
     fun newLink(preferredAddress: String?): ObdLink
 

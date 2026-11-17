@@ -2,6 +2,8 @@ package com.truckdash.data
 
 import android.content.Context
 import com.truckdash.engine.DriveEngine
+import com.truckdash.obd.AndroidClusterPlatform
+import com.truckdash.obd.ClusterPresenter
 import com.truckdash.repo.DashRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,13 +21,22 @@ object AppGraph {
     lateinit var repo: DashRepository
         private set
 
+    /** Cluster tab: process-wide so the trans stage (and the dongle session) outlive the activity. Inert until the tab opens. */
+    lateinit var clusterPlatform: AndroidClusterPlatform
+        private set
+    lateinit var cluster: ClusterPresenter
+        private set
+
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val main = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun init(ctx: Context) {
         db = AppDatabase.build(ctx)
         settings = SettingsStore(ctx)
         engine = DriveEngine(RoomTripSink(db), onDistance = settings::addDistance)
         repo = RoomDashRepository(db, settings, engine)
+        clusterPlatform = AndroidClusterPlatform(ctx)
+        cluster = ClusterPresenter(clusterPlatform, repo.settings, repo::setObdAddress, main)
         initDistanceCounterOnce()
         seedDefaultsOnce()
     }

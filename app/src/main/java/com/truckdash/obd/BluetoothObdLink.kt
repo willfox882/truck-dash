@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -30,6 +31,9 @@ class BluetoothObdLink(private val ctx: Context, private val preferredAddress: S
     companion object {
         val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         private const val MAX_REPLY = 4096
+
+        /** One RFCOMM connect attempt gives up after this long, so "could not connect" shows within about 10 s with the truck off. */
+        const val CONNECT_TIMEOUT_MS = 8_000L
 
         fun hasConnectPermission(ctx: Context): Boolean =
             Build.VERSION.SDK_INT < 31 ||
@@ -89,7 +93,11 @@ class BluetoothObdLink(private val ctx: Context, private val preferredAddress: S
         var sock: BluetoothSocket? = null
         try {
             sock = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            connectBlocking(sock)
+            if (!connectWithinTimeout(sock)) {
+                // nobody answered (truck off, out of range): no point trying the other route for another 8 s
+                closeQuietly(sock)
+                throw ObdLinkException(ObdFailure.ConnectionFailed, "connect timed out")
+            }
         } catch (e: IOException) {
             // many clone adapters reject the SDP route: raw channel 1 via reflection
             closeQuietly(sock)
@@ -98,7 +106,10 @@ class BluetoothObdLink(private val ctx: Context, private val preferredAddress: S
                 @Suppress("DiscouragedPrivateApi")
                 val m = device.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
                 sock = m.invoke(device, 1) as BluetoothSocket
-                connectBlocking(sock)
+                if (!connectWithinTimeout(sock)) {
+                    closeQuietly(sock)
+                    throw ObdLinkException(ObdFailure.ConnectionFailed, "connect timed out")
+                }
             } catch (e2: IOException) {
                 closeQuietly(sock)
                 throw ObdLinkException(ObdFailure.ConnectionFailed, cause = e2)
@@ -116,6 +127,10 @@ class BluetoothObdLink(private val ctx: Context, private val preferredAddress: S
         }
         socket = sock
     }
+
+    /** False when the connect did not finish in [CONNECT_TIMEOUT_MS]; the timeout cancels connectBlocking, which closes the socket. */
+    private suspend fun connectWithinTimeout(sock: BluetoothSocket): Boolean =
+        withTimeoutOrNull(CONNECT_TIMEOUT_MS) { connectBlocking(sock); true } ?: false
 
     /** Blocking connect on a helper thread; cancelling the coroutine closes the socket, which unblocks (and fails) connect(). */
     @SuppressLint("MissingPermission") // permission is checked in open(); a revoked one surfaces as SecurityException and is mapped there

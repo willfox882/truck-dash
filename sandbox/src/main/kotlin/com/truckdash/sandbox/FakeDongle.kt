@@ -120,6 +120,8 @@ class FakeDongle(initial: DongleScenario = DongleScenario.Healthy, val latencyMs
 class SandboxClusterPlatform(val dongle: FakeDongle) : ClusterPlatform {
     override val appActive: StateFlow<Boolean> = MutableStateFlow(true)
     override fun hasPermission() = true
+    override fun canRequestPermission() = true
+    override fun openPermissionSettings() {}
     override fun requestPermission(onResult: (Boolean) -> Unit) = onResult(true)
     override fun newLink(preferredAddress: String?): ObdLink = dongle.newLink()
     override fun pairedDevices(): List<PairedDevice> = listOf(

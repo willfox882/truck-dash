@@ -44,14 +44,18 @@ import com.truckdash.ui.ScreenTitle
 import com.truckdash.ui.TextAction
 import com.truckdash.ui.pane
 
-/** Stateful wrapper: reads the presenter, owns the dongle picker dialog. */
+/**
+ * Stateful wrapper: reads the presenter, owns the dongle picker dialog. [locked] is the optional Driving lock saying the
+ * truck is moving: the dongle picker is then unavailable (the gauges and Retry stay usable).
+ */
 @Composable
-fun ClusterScreen(vm: ClusterPresenter, modifier: Modifier = Modifier) {
+fun ClusterScreen(vm: ClusterPresenter, modifier: Modifier = Modifier, locked: Boolean = false) {
     val state by vm.state.collectAsState()
     var picking by remember { mutableStateOf<List<PairedDevice>?>(null) }
+    if (locked && picking != null) picking = null
     ClusterView(
         state, vm.selectedAddress != null, onRetry = vm::retry,
-        onChooseDongle = { picking = vm.pairedDevices() }, modifier = modifier,
+        onChooseDongle = { picking = vm.pairedDevices() }, modifier = modifier, pickerLocked = locked,
     )
     picking?.let { devices ->
         DonglePickerDialog(devices, vm.selectedAddress, onDismiss = { picking = null }) { vm.selectDevice(it); picking = null }
@@ -66,10 +70,11 @@ fun ClusterView(
     onRetry: () -> Unit,
     onChooseDongle: () -> Unit,
     modifier: Modifier = Modifier,
+    pickerLocked: Boolean = false,
 ) {
     Box(modifier.fillMaxSize()) {
-        if (state.phase == ClusterPhase.Failed) FailedView(state, dongleChosen, onRetry, onChooseDongle)
-        else DialsView(state, dongleChosen, onChooseDongle)
+        if (state.phase == ClusterPhase.Failed) FailedView(state, dongleChosen, onRetry, onChooseDongle, pickerLocked)
+        else DialsView(state, dongleChosen, onChooseDongle, pickerLocked)
     }
 }
 
@@ -91,7 +96,7 @@ private fun StatusLine(state: ClusterState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun DongleRow(state: ClusterState, chosen: Boolean, onChoose: () -> Unit, modifier: Modifier = Modifier) {
+private fun DongleRow(state: ClusterState, chosen: Boolean, onChoose: () -> Unit, locked: Boolean, modifier: Modifier = Modifier) {
     val name = state.device
     val text = when {
         name != null && !chosen -> "$name · auto"
@@ -102,12 +107,12 @@ private fun DongleRow(state: ClusterState, chosen: Boolean, onChoose: () -> Unit
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Label("Dongle")
         Text(text, color = Dash.dim, fontSize = pane(14.sp, 12.sp), maxLines = 1, modifier = Modifier.padding(start = 10.dp).weight(1f))
-        TextAction("Change", onChoose, color = Dash.text)
+        if (!locked) TextAction("Change", onChoose, color = Dash.text)
     }
 }
 
 @Composable
-private fun DialsView(state: ClusterState, dongleChosen: Boolean, onChooseDongle: () -> Unit) {
+private fun DialsView(state: ClusterState, dongleChosen: Boolean, onChooseDongle: () -> Unit, pickerLocked: Boolean) {
     val p = LocalPaneSpec.current
     val specs = ClusterGauges.forStage(state.transStage)
     val values = specs.map { state.value(it.id) }
@@ -163,14 +168,14 @@ private fun DialsView(state: ClusterState, dongleChosen: Boolean, onChooseDongle
                 }
             }
         }
-        DongleRow(state, dongleChosen, onChooseDongle, Modifier.padding(bottom = pane(12.dp, 4.dp)))
+        DongleRow(state, dongleChosen, onChooseDongle, pickerLocked, Modifier.padding(bottom = pane(12.dp, 4.dp)))
     }
 }
 
 @Composable
-private fun FailedView(state: ClusterState, dongleChosen: Boolean, onRetry: () -> Unit, onChooseDongle: () -> Unit) {
+private fun FailedView(state: ClusterState, dongleChosen: Boolean, onRetry: () -> Unit, onChooseDongle: () -> Unit, pickerLocked: Boolean) {
     val p = LocalPaneSpec.current
-    val reason = ClusterText.reason(state.failure ?: com.truckdash.obd.ObdFailure.ConnectionFailed)
+    val reason = ClusterText.reason(state.failure ?: com.truckdash.obd.ObdFailure.ConnectionFailed, state.permissionViaSettings)
     Column(Modifier.fillMaxSize()) {
         Column(
             Modifier.weight(1f).fillMaxWidth().padding(horizontal = pane(36.dp, 24.dp, 24.dp)),
@@ -194,7 +199,7 @@ private fun FailedView(state: ClusterState, dongleChosen: Boolean, onRetry: () -
         }
         if (!p.tiny) {
             Hairline()
-            DongleRow(state, dongleChosen, onChooseDongle, Modifier.padding(horizontal = pane(20.dp, 16.dp), vertical = pane(8.dp, 2.dp)))
+            DongleRow(state, dongleChosen, onChooseDongle, pickerLocked, Modifier.padding(horizontal = pane(20.dp, 16.dp), vertical = pane(8.dp, 2.dp)))
         }
     }
 }

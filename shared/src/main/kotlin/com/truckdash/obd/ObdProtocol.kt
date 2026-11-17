@@ -43,18 +43,37 @@ object ObdProtocol {
     private val NOISE = listOf("SEARCHING...", "SEARCHING", "BUS INIT", "STOPPED")
 
     /**
-     * Extracts data byte A from a reply for [prefix]: drop SEARCHING/BUS INIT noise, reject NO DATA / ERROR /
-     * UNABLE TO CONNECT, keep hex digits only, find the prefix, take the next two hex digits. Null when anything is off.
+     * Extracts data byte A from a reply for [prefix]. The reply is split into lines (CR / LF); each line has SEARCHING /
+     * BUS INIT noise, spaces and non-hex characters removed, and the first line that STARTS with [prefix] wins, so a
+     * negative response (7F...) or an ISO-TP continuation line ("0:", "1:") on another line can never produce a match
+     * that spans two lines. Anything saying NO DATA / ERROR / UNABLE TO CONNECT rejects the whole reply. Null when off.
      */
     fun parseByteA(raw: String?, prefix: String): Int? {
         if (raw == null) return null
-        var up = raw.uppercase()
-        for (junk in NOISE) up = up.replace(junk, "")
-        val packed = up.replace(" ", "").replace("\r", "").replace("\n", "")
-        if ("NODATA" in packed || "ERROR" in packed || "UNABLETOCONNECT" in packed) return null
-        val hex = packed.filter { it in '0'..'9' || it in 'A'..'F' }
-        val i = hex.indexOf(prefix.uppercase())
-        if (i < 0 || hex.length < i + prefix.length + 2) return null
-        return hex.substring(i + prefix.length, i + prefix.length + 2).toInt(16)
+        val want = prefix.uppercase()
+        var found: Int? = null
+        for (line in raw.split('\r', '\n')) {
+            var up = line.uppercase()
+            for (junk in NOISE) up = up.replace(junk, "")
+            val packed = up.filter { !it.isWhitespace() }
+            if (packed.isEmpty()) continue
+            if ("NODATA" in packed || "ERROR" in packed || "UNABLETOCONNECT" in packed) return null
+            if (found != null) continue
+            if (packed.length > 1 && packed[1] == ':') continue // ISO-TP frame index ("0:", "1:"): not a single-frame reply
+            val hex = packed.filter { it in '0'..'9' || it in 'A'..'F' }
+            if (hex.startsWith(want) && hex.length >= want.length + 2) {
+                found = hex.substring(want.length, want.length + 2).toInt(16)
+            }
+        }
+        return found
     }
+
+    /** Did the adapter accept this init command? ATZ answers with its banner (ELM...), everything else with OK. */
+    fun initReplyOk(command: String, reply: String): Boolean {
+        val up = reply.uppercase()
+        return if (command == "ATZ") "ELM" in up else "OK" in up
+    }
+
+    /** Did the adapter accept ATSH (header change)? */
+    fun headerReplyOk(reply: String): Boolean = "OK" in reply.uppercase()
 }

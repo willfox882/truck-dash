@@ -21,6 +21,16 @@ import com.truckdash.ui.TruckDashRoot
 import com.truckdash.ui.cluster.DonglePickerDialog
 import androidx.compose.foundation.layout.Box
 import com.truckdash.ui.TruckDashTheme
+import com.truckdash.obd.ClusterPlatform
+import com.truckdash.obd.ClusterPresenter
+import com.truckdash.obd.ObdLink
+import com.truckdash.obd.PairedDevice
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.StateFlow
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -165,6 +175,46 @@ class PaneRenderTests {
         val shown = render(w, h) { TruckDashRoot(s.repo, DashTab.Live, cluster = s.cluster) }
         assertTrue("Cluster tab should show when enabled", rightEdgeLabel(shown))
         assertEquals("no Bluetooth until the tab is opened", 0, s.dongle.opens)
+    }
+
+    /** Wraps a platform and counts EVERY call (including reading the active flag). */
+    private class CountingPlatform(private val inner: ClusterPlatform) : ClusterPlatform {
+        val calls = AtomicInteger()
+        override val appActive: StateFlow<Boolean> get() { calls.incrementAndGet(); return inner.appActive }
+        override fun hasPermission(): Boolean { calls.incrementAndGet(); return inner.hasPermission() }
+        override fun requestPermission(onResult: (Boolean) -> Unit) { calls.incrementAndGet(); inner.requestPermission(onResult) }
+        override fun canRequestPermission(): Boolean { calls.incrementAndGet(); return inner.canRequestPermission() }
+        override fun openPermissionSettings() { calls.incrementAndGet(); inner.openPermissionSettings() }
+        override fun newLink(preferredAddress: String?): ObdLink { calls.incrementAndGet(); return inner.newLink(preferredAddress) }
+        override fun pairedDevices(): List<PairedDevice> { calls.incrementAndGet(); return inner.pairedDevices() }
+    }
+
+    @Test fun clusterSettingOffMakesZeroPlatformCalls() {
+        val s = SandboxSession.create(seedHistory = false, nowMs = 1_760_000_000_000L)
+        assertFalse(s.repo.settings.value.showCluster)
+        val viaPlatform = CountingPlatform(s.cluster)
+        val viaPresenter = CountingPlatform(s.cluster)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val presenter = ClusterPresenter(viaPresenter, s.repo.settings, s.repo::setObdAddress, scope)
+        for (tab in listOf(DashTab.Live, DashTab.Trips, DashTab.Health)) {
+            for ((_, size) in shapes) {
+                val (w, h) = size
+                render(w, h) { TruckDashRoot(s.repo, tab, cluster = viaPlatform) }
+                render(w, h) { TruckDashRoot(s.repo, tab, clusterPresenter = presenter) }
+            }
+        }
+        // even asking for the Cluster tab while the setting is off must not reach Bluetooth
+        render(810, 1440) { TruckDashRoot(s.repo, DashTab.Cluster, cluster = viaPlatform) }
+        render(810, 1440) { TruckDashRoot(s.repo, DashTab.Cluster, clusterPresenter = presenter) }
+        assertEquals("platform calls with the setting off", 0, viaPlatform.calls.get())
+        assertEquals("platform calls with the setting off (shared presenter)", 0, viaPresenter.calls.get())
+        assertEquals(0, s.dongle.opens)
+
+        // control: turning the setting on and opening the tab does reach the platform (so the check above can fail)
+        s.repo.setShowCluster(true)
+        render(810, 1440) { TruckDashRoot(s.repo, DashTab.Cluster, cluster = viaPlatform) }
+        assertTrue("the counter works", viaPlatform.calls.get() > 0)
+        scope.cancel()
     }
 
     @Test fun liveWithoutFixAndParkedStatesRender() {

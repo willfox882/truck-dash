@@ -16,6 +16,10 @@ data class ClusterState(
     val device: String? = null,
     val values: Map<GaugeId, Float> = emptyMap(),
     val transStage: TransStage = TransStage.Functional,
+    /** The current trans stage has answered at least once (it is then never escalated away from). */
+    val transConfirmed: Boolean = false,
+    /** Permission is missing and Android will not show its dialog again: Retry opens the app's settings instead. */
+    val permissionViaSettings: Boolean = false,
 ) {
     fun value(id: GaugeId): Float? = values[id]
 }
@@ -45,11 +49,12 @@ data class GaugeSpec(
 
 /** The four dials. All temperatures are degrees C (ranges and warn points converted from the original degF values). */
 object ClusterGauges {
-    val TRANS = GaugeSpec(GaugeId.Trans, "Transmission", "Trans", "°C", 20f, 150f, warn = 118f, critical = 130f)
+    // trans warn is 116 C (the original's 240 F); coolant and intake follow their own original points
+    val TRANS = GaugeSpec(GaugeId.Trans, "Transmission", "Trans", "°C", 20f, 150f, warn = 116f, critical = 130f)
     val COOLANT = GaugeSpec(GaugeId.Trans, "Coolant", "Coolant", "°C", 40f, 140f, warn = 118f, critical = 125f)
     val LOAD = GaugeSpec(GaugeId.Load, "Engine load", "Load", "%", 0f, 100f, warn = 90f)
     val THROTTLE = GaugeSpec(GaugeId.Throttle, "Throttle", "Throttle", "%", 0f, 100f)
-    val INTAKE = GaugeSpec(GaugeId.Intake, "Intake air", "Intake", "°C", -20f, 80f)
+    val INTAKE = GaugeSpec(GaugeId.Intake, "Intake air", "Intake", "°C", -40f, 80f, warn = 54f) // original 130 F
 
     /** Dial order: row 1 = Trans/Coolant, Load; row 2 = Throttle, Intake. The first dial relabels itself after the fallback. */
     fun forStage(stage: TransStage): List<GaugeSpec> =

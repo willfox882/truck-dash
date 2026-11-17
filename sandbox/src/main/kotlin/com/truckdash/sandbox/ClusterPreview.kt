@@ -39,6 +39,12 @@ object ClusterPreview {
         "trans-physical" to ClusterState(
             phase = ClusterPhase.Live, device = "V-LINK", transStage = TransStage.Physical, values = liveValues - GaugeId.Trans,
         ),
+        "trans-physical-live" to ClusterState(
+            phase = ClusterPhase.Live, device = "V-LINK", transStage = TransStage.Physical, transConfirmed = true, values = liveValues,
+        ),
+        "failed-permission-settings" to ClusterState(
+            phase = ClusterPhase.Failed, failure = ObdFailure.PermissionNeeded, permissionViaSettings = true,
+        ),
         "fallback-coolant" to ClusterState(
             phase = ClusterPhase.Live, device = "V-LINK", transStage = TransStage.Fallback,
             values = liveValues + (GaugeId.Trans to 92f),

@@ -1,7 +1,9 @@
 package com.truckdash.obd
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ObdProtocolTests {
@@ -36,6 +38,40 @@ class ObdProtocolTests {
         assertNull(a("4111FF"))      // a different PID's reply
         assertNull(a("@@@###"))
     }
+    // ---- per-line matching at offset 0 ---------------------------------------------------------------------------------
+
+    @Test fun aMatchNeverSpansTwoLines() {
+        assertNull(a("3E41\r0412"))                       // "41" + "04" joined would have matched 4104 and read 12
+        assertEquals(0xFF, a("3E41\r4104FF"))
+    }
+    @Test fun isoTpContinuationLinesAreIgnored() {
+        assertNull(a("00B\r0: 41 04 FF 00 00\r1: 00 00"))      // multi-frame: not a single-frame reply, never corrupt
+        assertEquals(0x46, a("00B\r0: 7F 22 31\r410F46", "410F"))
+    }
+    @Test fun aTcmLineAfterANegativeResponseIsFound() {
+        val raw = "7F2231\r6219407D\r\r"                  // the ECM refuses, the TCM answers
+        assertEquals(0x7D, a(raw, "621940"))
+        assertEquals(0x7D, a("7F 22 31\r\r62 19 40 7D", "621940"))
+        assertNull(a("7F2231", "621940"))                   // the refusal alone is not an answer
+        assertEquals(0x7D, a("SEARCHING...\r7F2231\r\n6219407D", "621940"))
+    }
+    @Test fun firstMatchingLineWins() = assertEquals(0x10, a("410F10\r410F20", "410F"))
+    @Test fun echoLineBeforeTheReplyIsSkipped() = assertEquals(0x46, a("010F\r410F46", "410F"))
+    @Test fun initAndHeaderRepliesAreChecked() {
+        assertTrue(ObdProtocol.initReplyOk("ATZ", "\r\rELM327 v1.5\r\r"))
+        assertTrue(ObdProtocol.initReplyOk("ATZ", "ATZ\r\rELM327 v2.1"))
+        assertFalse(ObdProtocol.initReplyOk("ATZ", "OK"))
+        assertFalse(ObdProtocol.initReplyOk("ATZ", "?"))
+        for (c in listOf("ATE0", "ATL0", "ATS0", "ATSP6")) {
+            assertTrue(ObdProtocol.initReplyOk(c, "OK\r\r"))
+            assertTrue(ObdProtocol.initReplyOk(c, "ATE0\rOK"))
+            assertFalse(ObdProtocol.initReplyOk(c, "?"))
+            assertFalse(ObdProtocol.initReplyOk(c, ""))
+        }
+        assertTrue(ObdProtocol.headerReplyOk("OK\r\r"))
+        assertFalse(ObdProtocol.headerReplyOk("?"))
+    }
+
     @Test fun prefixIsMatchedCaseInsensitivelyAndRespectsOtherPids() {
         assertEquals(0x46, a("410f46", "410F"))
         assertEquals(0x7D, a("62 19 40 7D", "621940"))

@@ -203,6 +203,60 @@ class ObdSessionTests {
         assertFalse(rig.log.drop(rig.log.indexOfLast { it == "open" }).contains("221940"))
     }
 
+    @Test fun physicalStageThatAnswersShowsConfirmedAndTheFlagSurvivesReconnects() = runTest {
+        var header = "7DF"
+        var drop = false
+        val h: (String) -> String? = { c ->
+            when {
+                drop -> throw ObdLinkException(ObdFailure.LinkLost)
+                c == "ATSH7E1" -> { header = "7E1"; "OK\r\r" }
+                c == "ATSH7DF" -> { header = "7DF"; "OK\r\r" }
+                c == "221940" -> if (header == "7E1") "6219407D\r\r" else "NO DATA\r\r"
+                else -> healthyReply(c)
+            }
+        }
+        val rig = Rig(handlers = mutableListOf(h))
+        val (s, _) = start(rig)
+        advanceTimeBy(INIT_MS + 50L * 7 + 10); runCurrent()   // the 8th miss has just moved it to the physical stage
+        assertEquals(TransStage.Physical, s.state.value.transStage)
+        assertFalse(s.state.value.transConfirmed)             // still asking
+        advanceTimeBy(50L * 6); runCurrent()
+        assertTrue(s.state.value.transConfirmed)
+        assertEquals(ClusterText.Tone.Ok, ClusterText.status(s.state.value).tone)
+        drop = true; advanceTimeBy(100); runCurrent()
+        assertTrue(s.state.value.transConfirmed)              // kept while reconnecting
+    }
+
+    @Test fun anAnsweringFunctionalStageIsConfirmedToo() = runTest {
+        val rig = Rig(handlers = mutableListOf(healthy))
+        val (s, _) = start(rig)
+        advanceTimeBy(INIT_MS + 60); runCurrent()
+        assertTrue(s.state.value.transConfirmed)
+        assertEquals(TransStage.Functional, s.state.value.transStage)
+    }
+
+    @Test fun restoringTheBroadcastAddressWithoutOkReconnects() = runTest {
+        var restoreFails = false
+        val h: (String) -> String? = { c ->
+            when {
+                c == "ATSH7DF" -> if (restoreFails) "?\r\r" else "OK\r\r"
+                else -> transSilent(c)
+            }
+        }
+        val rig = Rig(handlers = mutableListOf(h, healthy))
+        val (s, _) = start(rig)
+        advanceTimeBy(INIT_MS + 50L * 9); runCurrent()
+        assertEquals(TransStage.Physical, s.state.value.transStage)
+        restoreFails = true
+        advanceTimeBy(100); runCurrent()
+        assertEquals(ClusterPhase.Failed, s.state.value.phase)
+        assertEquals(ObdFailure.LinkLost, s.state.value.failure)
+        assertTrue(rig.links[0].closed)
+        advanceTimeBy(5000 + INIT_MS + 100); runCurrent()
+        assertEquals(2, rig.links.size)
+        assertEquals("ATZ", rig.log.drop(rig.log.indexOfLast { it == "open" } + 1).first())   // a clean start, ATZ first
+    }
+
     // ---- connection lifecycle ------------------------------------------------------------------------------------------
 
     @Test fun everyOpenFailureShowsItsReasonAndRetriesEveryFiveSeconds() = runTest {
@@ -262,6 +316,35 @@ class ObdSessionTests {
         assertEquals(ClusterPhase.Failed, s.state.value.phase)
         assertEquals(ObdFailure.InitFailed, s.state.value.failure)
         assertTrue(rig.links[0].closed)
+    }
+
+    @Test fun initRepliesAreChecked() = runTest {
+        // ATZ without the ELM banner, then an adapter that refuses ATE0: both are init failures that reconnect
+        for (bad in listOf("ATZ" to "OK\r\r", "ATE0" to "?\r\r", "ATSP6" to "ERROR\r\r")) {
+            val rig = Rig(handlers = mutableListOf({ c -> if (c == bad.first) bad.second else healthyReply(c) }, healthy))
+            val (s, _) = start(rig)
+            advanceTimeBy(INIT_MS + 50); runCurrent()
+            assertEquals(bad.first, ClusterPhase.Failed, s.state.value.phase)
+            assertEquals(bad.first, ObdFailure.InitFailed, s.state.value.failure)
+            assertTrue(rig.links[0].closed)
+            assertFalse(bad.first, rig.log.contains("0104"))             // never polled
+            advanceTimeBy(5_000 + INIT_MS + 100); runCurrent()
+            assertEquals(bad.first, 2, rig.links.size)
+            assertEquals(bad.first, ClusterPhase.Live, s.state.value.phase)
+        }
+    }
+
+    @Test fun aStaleRetryFromBeforeTheAttemptDoesNotCutTheNextWait() = runTest {
+        val rig = Rig(handlers = mutableListOf(healthy), openFailures = mutableListOf(ObdFailure.ConnectionFailed))
+        val s = ObdSession(rig.factory())
+        s.retryNow(); s.retryNow()                                       // pressed while nothing was running
+        backgroundScope.launch { s.run() }
+        runCurrent()
+        assertEquals(1, rig.links.size)
+        advanceTimeBy(4_900); runCurrent()
+        assertEquals(1, rig.links.size)                                  // still waiting the full 5 s
+        advanceTimeBy(200); runCurrent()
+        assertEquals(2, rig.links.size)
     }
 
     @Test fun timeoutOrErrorWhilePollingIsALostLinkAndReconnects() = runTest {
