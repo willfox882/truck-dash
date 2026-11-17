@@ -97,7 +97,7 @@ fun SandboxApp() {
                             .border(8.dp, Dash.surfaceHigh, RoundedCornerShape(22.dp))
                             .padding(8.dp).clip(RoundedCornerShape(14.dp)),
                     ) {
-                        TruckDashRoot(session.repo)
+                        TruckDashRoot(session.repo, cluster = session.cluster)
                     }
                 }
                 // ---- simulator controls ----
@@ -215,7 +215,24 @@ private fun ControlPanel(session: SandboxSession, paneH: Float, onPaneH: (Float)
             Switch(settings.drivingLock, onCheckedChange = session.repo::setDrivingLock, colors = dashSwitchColors())
             Text("  Driving lock (Trips/Health above 5 km/h)", color = Dash.text, fontSize = 13.sp)
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(settings.showCluster, onCheckedChange = session.repo::setShowCluster, colors = dashSwitchColors())
+            Text("  Cluster tab (Health setting, off by default)", color = Dash.text, fontSize = 13.sp)
+        }
         PillButton("Reset sandbox data", onReset, small = true)
+
+        Section("Cluster dongle (fake ELM327)")
+        val dongleScenario by session.dongle.scenario.collectAsState()
+        DongleScenario.entries.forEach { sc ->
+            Column {
+                PillButton(
+                    sc.title, { session.dongle.select(sc) }, Modifier.fillMaxWidth(), small = true,
+                    kind = if (dongleScenario == sc) PillKind.Primary else PillKind.Secondary,
+                )
+                if (dongleScenario == sc) Text(sc.blurb, color = ColorMuted, fontSize = 11.sp)
+            }
+        }
+        Text("The failsafe stage persists across reconnects; use Reset sandbox data to start it over.", color = ColorMuted, fontSize = 11.sp)
 
         HorizontalDivider(color = Dash.line)
         Text(

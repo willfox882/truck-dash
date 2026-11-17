@@ -1,7 +1,7 @@
 # Truck Dash - agent guide (READ THIS FIRST)
 
 Android app (Kotlin + Compose + Room) for a 14.4" **portrait** head unit in a 2015 GMC Sierra 1500.
-No OBD, no external hardware: only the unit's GPS, IMU and (later) low-speed body-bus broadcasts.
+Core app: no OBD, no external hardware, only the unit's GPS, IMU and (later) low-speed body-bus broadcasts. Optional **Cluster tab** (v0.6.0): OBD gauges from a Bluetooth ELM327 dongle, hidden by default.
 
 **Do not re-read the whole repo.** Workflow for every session:
 0. Sandbox + screenshots exist: verify UI/logic changes there before touching a device (`docs/SANDBOX.md`).
@@ -36,6 +36,15 @@ Sandbox network must allow `dl.google.com` + `maven.google.com` for Gradle/AGP/S
 - Room: schema exported to `app/schemas/`. Any entity change → bump `version` and add a migration (never destructive). v1→v2 (imperial→metric) lives in `data/Migrations.kt` and was verified against real SQLite; do the same for future ones.
 - Version catalog: `gradle/libs.versions.toml`. Don't hard-code versions in `build.gradle.kts`.
 - **Units (owner is in Canada - METRIC ONLY, never imperial):** speed km/h, distance km, altitude m, fuel litres and **L/100 km** (price $/L, cost per 100 km), oil in litres, **pressures in kPa** (never psi), temperature °C. Raw trip storage stays SI (metres, m/s); fuel/odometer/maintenance are stored in km / litres. `Geo` has the factors (`MPS_TO_KMH`, `M_TO_KM`). Any new feature (tire pressure, oil pressure, coolant temp…) must follow this.
+
+## Cluster tab rules (v0.6.0, ported from the owner's OBD-Gage-Cluster repo)
+- **Hidden by default** (`Settings.showCluster`, Health switch "Cluster tab"). Hidden means no tab, no Bluetooth permission request and **no Bluetooth activity at all**: the app must behave exactly as before. `ClusterPresenter` makes no platform call until `setTabVisible(true)`.
+- Connect only while the Cluster tab is visible and the app is active; disconnect when leaving it or backgrounding. BLUETOOTH_CONNECT is asked at runtime (API 31+) only when the tab opens. Never request location for Bluetooth.
+- Logic lives in `shared/.../obd` (pure Kotlin, `ObdLink` abstraction, no `android.*`); only `BluetoothObdLink` / `AndroidClusterPlatform` / the permission launcher in `MainActivity` are Android. Never crash on a missing adapter, Bluetooth off or SecurityException (map to an `ObdFailure`).
+- No "no dongle" fallback UI: when it cannot connect the tab keeps its name, says "Could not connect to the OBD dongle" with a plain reason, a Retry button, and keeps retrying every 5 s while visible.
+- Gauges are **degC and %** (no degF): trans / coolant warn about 118 C. Same design language (hairline dials, Geist, colour only for meaning: amber near warn, red past critical, no blue or violet). No driving restriction on this tab (owner decision).
+- Do not change the staged trans failsafe guards in `ObdSession` (misses count only when other PIDs answer, never leave a stage that answered once, stage persists across reconnects) without updating `ObdSessionTests`.
+- New screens or states here need the sandbox shots at full / half / strip (`ClusterPreview`) and `PaneRenderTests`.
 
 ## Key design facts
 - `DriveEngine` (shared) is the brain: feed it GPS fixes + vehicle-frame g; it keeps `LiveState` and records trips through a `TripSink`. `DriveService` (Android) and `SimController` (sandbox) are just two feeders.

@@ -24,6 +24,8 @@ interface DashRepository {
     fun setOdometer(km: Double)
     fun setPassengerMode(on: Boolean)
     fun setDrivingLock(on: Boolean)
+    fun setShowCluster(on: Boolean)
+    fun setObdAddress(address: String?)
 
     suspend fun addFuel(log: FuelLog)
     suspend fun deleteFuel(log: FuelLog)

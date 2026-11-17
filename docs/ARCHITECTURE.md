@@ -32,6 +32,18 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `engine/TripRecorder.kt` | trip state machine; holds stationary points back so trailing idle is dropped |
 | `engine/DriveEngine.kt` | fixes + g samples in → `StateFlow<LiveState>` + trips out; fix-quality gating; g smoothing (120 ms τ); 1 Hz `tick` (GPS-loss flag, ends trips on fix gaps); `onDistance` feeds the odometer counter |
 
+## shared/.../obd  (pure Kotlin, Cluster tab logic; tests in `app/src/test/.../obd/`)
+| File | Purpose |
+|---|---|
+| `ObdLink.kt` | `ObdLink` interface (open / write / readUntilPrompt with timeout / close), `ObdFailure`, `ObdLinkException`, `ObdTimeoutException`, `PairedDevice`, `exchange()` |
+| `ObdProtocol.kt` | init sequence, PID table (0104, 0111, 010F, 221940, 0105), `parseByteA`, degC / percent conversion |
+| `DeviceSelector.kt` | picks the dongle from bonded devices (saved address, else name hints) |
+| `ClusterModels.kt` | `ClusterState`, `ClusterPhase`, `TransStage`, `GaugeSpec` + `ClusterGauges` (degC ranges and warn / critical points) |
+| `ObdSession.kt` | connect, init, poll loop, 5 s reconnect, staged trans failsafe (`StateFlow<ClusterState>`) |
+| `ClusterPresenter.kt` | runs the session only while the tab is visible and the app active; permission-once, dongle choice |
+| `ClusterPlatform.kt` | what the platform supplies: `appActive`, permission, `newLink`, `pairedDevices` |
+| `ClusterText.kt` | failure titles / reasons and the status line strings |
+
 ## shared/.../ui
 | File | Purpose |
 |---|---|
@@ -41,6 +53,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `live/LiveScreen.kt`, `live/Gauges.kt` | portrait live layout; `SpeedGauge`, `CompassRose`, `GBall` (Canvas, hairline style) |
 | `trips/TripsScreen.kt`, `trips/TripsPresenter.kt` | list + monthly chart + detail (route, speed/elevation, events) |
 | `health/HealthScreen.kt`, `health/HealthPresenter.kt` | odometer, maintenance, fuel (L/100 km), Driving lock + passenger-mode switches, dialogs |
+| `cluster/ClusterScreen.kt`, `cluster/ClusterDial.kt` | Cluster tab: `ClusterScreen` (stateful) / `ClusterView` (stateless), failure screen, dongle picker; hairline `ClusterDial`, strip `ClusterReadout` |
 | `charts/Charts.kt` | `LineChart`, `BarChart`, `RouteMap` |
 
 ## app/ (Android only)
@@ -49,10 +62,12 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `MainActivity.kt`, `TruckDashApplication.kt` | permissions, keep-awake, immersive, back hook; `AppGraph.init` |
 | `service/DriveService.kt` | thin feeder: Location + Sensor callbacks → `DriveEngine`; notification; 1 s `tick` |
 | `service/BootReceiver.kt` | best-effort autostart |
+| `obd/BluetoothObdLink.kt` | RFCOMM `ObdLink` (SPP UUID, reflection channel-1 fallback, connect aborted by closing the socket on cancel, `available()` polling reads) |
+| `obd/AndroidClusterPlatform.kt` | `ClusterPlatform` for Android: BLUETOOTH_CONNECT check / request (launcher owned by `MainActivity`), activity-active flag, bonded devices |
 | `data/Entities.kt`, `Daos.kt`, `AppDatabase.kt` | Room (v2, schema in `app/schemas`) |
 | `data/Mappers.kt`, `data/Migrations.kt` | entity ↔ model; Room v1→v2 (imperial→metric) migration |
 | `data/RoomTripSink.kt`, `RoomDashRepository.kt` | engine output → Room; repository over Room + `SettingsStore` |
 | `data/SettingsStore.kt`, `AppGraph.kt` | prefs-backed settings; service locator + first-run maintenance seeding |
 
 ## sandbox/ (desktop) - see `docs/SANDBOX.md`
-`VehicleSim.kt` (physics + scenarios), `SimController.kt`, `MemoryStore.kt`, `Session.kt`, `SandboxApp.kt` (incl. pane-shape selector), `Main.kt`, `Screenshots.kt` (full + pane-* shots). Tests: `SimTests.kt`, `PaneRenderTests.kt` (every screen at full/half/strip).
+`VehicleSim.kt` (physics + scenarios), `FakeDongle.kt` (simulated ELM327 + `SandboxClusterPlatform`), `ClusterPreview.kt` (Cluster states for shots / tests), `SimController.kt`, `MemoryStore.kt`, `Session.kt`, `SandboxApp.kt` (incl. pane-shape selector), `Main.kt`, `Screenshots.kt` (full + pane-* shots). Tests: `SimTests.kt`, `PaneRenderTests.kt` (every screen at full/half/strip), `ClusterSandboxTests.kt` (dongle scenarios through the real session).

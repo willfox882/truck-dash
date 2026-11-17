@@ -13,6 +13,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.truckdash.data.AppGraph
+import com.truckdash.obd.AndroidClusterPlatform
 import com.truckdash.service.DriveService
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -26,6 +27,22 @@ class MainActivity : ComponentActivity() {
 
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         DriveService.start(this)
+    }
+
+    // Cluster tab: BLUETOOTH_CONNECT is asked only when the tab is opened (Android 12+), never at startup
+    private val bluetoothPermission: androidx.activity.result.ActivityResultLauncher<String> = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        cluster.onPermissionResult(granted)
+    }
+    private val cluster = AndroidClusterPlatform(this) { bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT) }
+
+    override fun onResume() {
+        super.onResume()
+        cluster.setActive(true)
+    }
+
+    override fun onPause() {
+        cluster.setActive(false)
+        super.onPause()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +60,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             TruckDashTheme {
                 CompositionLocalProvider(LocalBackHook provides { enabled, onBack -> BackHandler(enabled, onBack) }) {
-                    TruckDashRoot(AppGraph.repo)
+                    TruckDashRoot(AppGraph.repo, cluster = cluster)
                 }
             }
         }

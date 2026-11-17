@@ -18,7 +18,11 @@ import com.truckdash.ui.health.ModeSettingsCard
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import com.truckdash.ui.TruckDashRoot
+import com.truckdash.ui.cluster.DonglePickerDialog
+import androidx.compose.foundation.layout.Box
 import com.truckdash.ui.TruckDashTheme
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
@@ -123,6 +127,44 @@ class PaneRenderTests {
             val px = render(w, h) { DesignScale { Column(Modifier.fillMaxSize().background(Dash.bg)) { ParkedOnly(87f) } } }
             check("parked@$shape", px, w, h, null)
         }
+    }
+
+    @Test fun clusterStatesRenderAtEveryShape() {
+        for ((shape, size) in shapes) {
+            val (w, h) = size
+            for ((name, st) in ClusterPreview.states) {
+                check("cluster-$name@$shape", render(w, h) { ClusterPreview.Shell(st) }, w, h, tabPx(h))
+            }
+        }
+    }
+
+    @Test fun clusterPickerRenders() {
+        for ((shape, size) in shapes) {
+            val (w, h) = size
+            val px = render(w, h) {
+                DesignScale {
+                    Box(Modifier.fillMaxSize().background(Dash.bg)) {
+                        DonglePickerDialog(session.cluster.pairedDevices(), null, {}, {})
+                    }
+                }
+            }
+            check("cluster-picker@$shape", px, w, h, null, gutter = false)
+        }
+    }
+
+    @Test fun fourthTabAppearsOnlyWhenTheSettingIsOn() {
+        val s = SandboxSession.create(seedHistory = false, nowMs = 1_760_000_000_000L)
+        val w = 810; val h = 1440
+        fun rightEdgeLabel(px: IntArray): Boolean {
+            for (y in h - tabPx(h) until h) for (x in (w * 0.9).toInt() until w - 8) if (((px[y * w + x] shr 16) and 255) > 0x50) return true // unselected tab labels are the faint grey
+            return false
+        }
+        val hidden = render(w, h) { TruckDashRoot(s.repo, DashTab.Live, cluster = s.cluster) }
+        assertFalse("Cluster tab must be hidden by default", rightEdgeLabel(hidden))
+        s.repo.setShowCluster(true)
+        val shown = render(w, h) { TruckDashRoot(s.repo, DashTab.Live, cluster = s.cluster) }
+        assertTrue("Cluster tab should show when enabled", rightEdgeLabel(shown))
+        assertEquals("no Bluetooth until the tab is opened", 0, s.dongle.opens)
     }
 
     @Test fun liveWithoutFixAndParkedStatesRender() {

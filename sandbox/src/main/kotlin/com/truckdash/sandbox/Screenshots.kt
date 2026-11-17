@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import com.truckdash.ui.dashFieldColors
 import com.truckdash.ui.TruckDashRoot
+import com.truckdash.ui.cluster.DonglePickerDialog
 import com.truckdash.ui.TruckDashTheme
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
@@ -104,6 +105,17 @@ fun main(args: Array<String>) {
                             OutlinedTextField("12.5", {}, label = { Text(l) }, singleLine = true, colors = dashFieldColors(), modifier = Modifier.fillMaxWidth())
                         }
                     }
+                }
+            }
+        }
+    }
+    // 5) Cluster tab (hidden by default; shown here as if switched on): every state at every pane shape
+    for ((shape, h) in panes) {
+        for ((name, st) in ClusterPreview.states) paneShot("pane-$shape-cluster-$name", 810, h) { ClusterPreview.Shell(st) }
+        paneShot("pane-$shape-cluster-picker", 810, h) {
+            DesignScale {
+                Box(Modifier.fillMaxSize().background(Dash.bg)) {
+                    DonglePickerDialog(session.cluster.pairedDevices(), "00:1D:A5:68:98:8B", {}, {})
                 }
             }
         }

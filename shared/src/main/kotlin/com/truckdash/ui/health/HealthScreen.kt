@@ -277,5 +277,13 @@ internal fun ModeSettingsCard(settings: Settings, vm: HealthPresenter) {
             }
             Switch(settings.passengerMode, onCheckedChange = vm::setPassengerMode, colors = dashSwitchColors())
         }
+        Hairline(Modifier.padding(vertical = pane(12.dp, 8.dp)))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Cluster tab", color = Dash.text, fontSize = pane(17.sp, 16.sp), fontWeight = FontWeight.Medium)
+                Text("OBD gauges over Bluetooth, off until shown", color = Dash.dim, fontSize = pane(13.sp, 12.sp))
+            }
+            Switch(settings.showCluster, onCheckedChange = vm::setShowCluster, colors = dashSwitchColors())
+        }
     }
 }

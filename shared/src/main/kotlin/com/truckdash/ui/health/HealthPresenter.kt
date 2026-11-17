@@ -32,6 +32,7 @@ class HealthPresenter(private val repo: DashRepository, private val scope: Corou
 
     fun setPassengerMode(on: Boolean) = repo.setPassengerMode(on)
     fun setDrivingLock(on: Boolean) = repo.setDrivingLock(on)
+    fun setShowCluster(on: Boolean) = repo.setShowCluster(on)
 
     fun addFuel(litres: Double, pricePerLitre: Double, odoKm: Double, full: Boolean) {
         scope.launch {

@@ -12,7 +12,12 @@ class SandboxSession(
     val engine: DriveEngine,
     val controller: SimController,
     val repo: SandboxRepo,
+    val dongle: FakeDongle = FakeDongle(),
 ) {
+    /** The Android Bluetooth layer's stand-in; hand it to `TruckDashRoot(cluster = ...)`. */
+    val cluster = SandboxClusterPlatform(dongle)
+
+
     companion object {
         private const val DAY = 86_400_000L
 

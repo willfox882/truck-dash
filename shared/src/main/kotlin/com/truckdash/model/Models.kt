@@ -52,6 +52,10 @@ data class Settings(
     val odoBaseTotalM: Double = 0.0,
     /** Optional "Driving lock": when on, Trips/Health lock above 5 km/h (unless passenger mode). Off by default. */
     val drivingLock: Boolean = false,
+    /** Shows the Cluster (OBD gauges) tab. Off by default; while off there is no Bluetooth activity and no permission request. */
+    val showCluster: Boolean = false,
+    /** Bluetooth address of the OBD dongle the user picked on the Cluster tab (null = choose automatically by name). */
+    val obdAddress: String? = null,
     /** Passenger mode disables the "parked only" lock on the Trips/Health tabs. */
     val passengerMode: Boolean = false,
     /** Extra yaw correction (deg) if the unit is mounted rotated so forward is not screen -Z. */

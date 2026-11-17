@@ -57,6 +57,8 @@ class RoomDashRepository(
 
     override fun setPassengerMode(on: Boolean) = store.update { it.copy(passengerMode = on) }
     override fun setDrivingLock(on: Boolean) = store.update { it.copy(drivingLock = on) }
+    override fun setShowCluster(on: Boolean) = store.update { it.copy(showCluster = on) }
+    override fun setObdAddress(address: String?) = store.update { it.copy(obdAddress = address) }
 
     override suspend fun addFuel(log: FuelLog) = db.fuelDao().insert(log.toEntity())
     override suspend fun deleteFuel(log: FuelLog) = db.fuelDao().delete(log.toEntity())

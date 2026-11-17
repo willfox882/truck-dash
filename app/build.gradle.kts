@@ -15,8 +15,22 @@ android {
         applicationId = "com.truckdash"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 600
+        versionName = "0.6.0"
+    }
+
+    // The container's standard debug key is committed (app/debug.keystore) so every build installs over earlier ones.
+    // It is the public Android debug key, not a release secret.
+    signingConfigs {
+        getByName("debug") {
+            val ks = file("debug.keystore")
+            if (ks.exists()) {
+                storeFile = ks
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {

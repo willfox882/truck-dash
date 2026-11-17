@@ -16,6 +16,8 @@ class SettingsStore(ctx: Context) {
             distTotalM = prefs.getDouble("distTotalM"),
             odoBaseTotalM = prefs.getDouble("odoBaseTotalM"),
             drivingLock = prefs.getBoolean("drivingLock", false),
+            showCluster = prefs.getBoolean("showCluster", false),
+            obdAddress = prefs.getString("obdAddress", null),
             passengerMode = prefs.getBoolean("passengerMode", false),
             mountYawDeg = prefs.getFloat("mountYawDeg", 0f),
         ),
@@ -43,6 +45,8 @@ class SettingsStore(ctx: Context) {
             .putLong("distTotalM", java.lang.Double.doubleToRawLongBits(s.distTotalM))
             .putLong("odoBaseTotalM", java.lang.Double.doubleToRawLongBits(s.odoBaseTotalM))
             .putBoolean("drivingLock", s.drivingLock)
+            .putBoolean("showCluster", s.showCluster)
+            .putString("obdAddress", s.obdAddress)
             .putBoolean("passengerMode", s.passengerMode)
             .putFloat("mountYawDeg", s.mountYawDeg)
             .apply()
