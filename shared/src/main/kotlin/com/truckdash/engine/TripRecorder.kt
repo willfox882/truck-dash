@@ -55,7 +55,7 @@ class TripRecorder(private val sink: TripSink) {
         lastClock = clockMs
         lastWall = wallMs
         lastLat = lat; lastLon = lon; lastSpeed = speedMps
-        if (altM != null) altEma = altEma?.let { it * 0.8 + altM * 0.2 } ?: altM
+        if (altM != null) altEma = altEma?.let { it * 0.9 + altM * 0.1 } ?: altM
         val moving = speedMps > MOVING_MPS
 
         when (segmenter.update(clockMs, speedMps)) {

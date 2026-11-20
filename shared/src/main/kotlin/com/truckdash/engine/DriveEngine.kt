@@ -1,6 +1,8 @@
 package com.truckdash.engine
 
 import com.truckdash.core.Geo
+import com.truckdash.core.GpsGEstimator
+import com.truckdash.core.isDeadSample
 import com.truckdash.core.VehicleG
 import com.truckdash.model.LiveState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +32,11 @@ class DriveEngine(sink: TripSink, onDistance: (Double) -> Unit = {}) {
     private var lastSpeed = 0f
     private var lastSpeedClock = -1L
     private var rejects = 0
+    private val gpsG = GpsGEstimator()
+    private var lastImuLiveClock = -1L
+
+    /** The IMU counts as alive when it reported a non-zero sample in the last 3 s; otherwise GPS drives g. */
+    private fun imuAlive(clockMs: Long) = lastImuLiveClock >= 0 && clockMs - lastImuLiveClock <= IMU_DEAD_MS
 
     fun setServiceRunning(running: Boolean) = _state.update { it.copy(serviceRunning = running) }
 
@@ -53,6 +60,9 @@ class DriveEngine(sink: TripSink, onDistance: (Double) -> Unit = {}) {
         lastFixClock = clockMs
 
         recorder.onFix(clockMs, wallMs, lat, lon, altM, speed)
+        val est = gpsG.update(clockMs, speed, bearingDeg)
+        val useGps = !imuAlive(clockMs)
+        if (useGps) recorder.onAcceleration(clockMs, wallMs, est.longG, est.latG)
         _state.update {
             it.copy(
                 hasFix = true,
@@ -60,7 +70,9 @@ class DriveEngine(sink: TripSink, onDistance: (Double) -> Unit = {}) {
                 bearingDeg = if (bearingDeg != null && speed > 1f) bearingDeg else it.bearingDeg,
                 altM = recorder.altM,
                 lat = lat, lon = lon, accuracyM = accuracyM,
-                gradePct = recorder.gradePct ?: it.gradePct,
+                gradePct = if (speed > GRADE_MIN_MPS) recorder.gradePct else null, // stale or noisy parked: show --
+                longG = if (useGps) est.longG else it.longG,
+                latG = if (useGps) est.latG else it.latG,
                 recording = recorder.active,
                 tripKm = recorder.distM * Geo.M_TO_KM,
                 tripMovingSec = recorder.movingMs / 1000,
@@ -71,6 +83,8 @@ class DriveEngine(sink: TripSink, onDistance: (Double) -> Unit = {}) {
 
     /** Raw vehicle-frame g sample (any rate). Smoothed with a ~120 ms time constant. */
     fun onAcceleration(clockMs: Long, wallMs: Long, g: VehicleG) {
+        if (!isDeadSample(g)) lastImuLiveClock = clockMs
+        if (!imuAlive(clockMs)) return // silent sensor: the GPS estimate (onLocation) drives g
         if (lastGClock < 0) {
             longEma = g.longG; latEma = g.latG
         } else {
@@ -108,6 +122,7 @@ class DriveEngine(sink: TripSink, onDistance: (Double) -> Unit = {}) {
         recorder.stop(clockMs, wallMs)
         recorder.reset()
         longEma = 0f; latEma = 0f; lastGClock = -1
+        gpsG.reset(); lastImuLiveClock = -1
         lastSpeed = 0f; lastSpeedClock = -1; lastFixClock = -1; rejects = 0
         _state.value = LiveState()
     }
@@ -128,6 +143,8 @@ class DriveEngine(sink: TripSink, onDistance: (Double) -> Unit = {}) {
 
     private companion object {
         const val TAU_MS = 120f
+        const val IMU_DEAD_MS = 3_000L
+        const val GRADE_MIN_MPS = 2.8f // about 10 km/h
         const val MAX_ACCURACY_M = 40f
         const val MAX_ACCEL_MPS2 = 12.0 // faster than any truck can change speed
     }

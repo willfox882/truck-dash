@@ -20,6 +20,7 @@ source dir compiled into both (via `srcDir`), so the UI/engine tested in the san
 | `HarshEventDetector.kt` | hard accel/brake/corner: must be sustained 300 ms, then re-arm below 70 % of threshold |
 | `GravityTracker.kt` | accelerometer-only fallback: slow, steady-only gravity filter (sample-rate independent) |
 | `TripSegmenter.kt` | speed stream → START/END trip events (hold + idle timers) |
+| `GpsG.kt` | `GpsGEstimator`: g-force from GPS speed/heading when the IMU is missing or silent (v0.6.2); `isDeadSample` |
 | `ElevationGrade.kt` | `ElevationAccumulator` (hysteresis climb), `GradeEstimator` (% grade) |
 | `MaintenanceCalc.kt` / `FuelEconomy.kt` / `Analytics.kt` | maintenance status, fill-to-fill L/100 km, km per month etc. |
 

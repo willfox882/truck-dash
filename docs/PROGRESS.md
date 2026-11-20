@@ -2,7 +2,7 @@
 
 _Update this file at the end of every session. Newest entry on top of "Log"._
 
-## Status: v0.6.1 (audit fixes for the optional Cluster tab, hidden by default) - builds, tests pass (app + sandbox), lint clean. Desktop sandbox verified by screenshots at full / half / strip. **Never run on a real truck/head unit yet. Cluster: Unverified on real dongle** (only the simulated ELM327 in the sandbox has been exercised).
+## Status: v0.6.2 (truck feedback: g-force and grade fixes; first real-truck run worked, speed/GPS fine) on top of v0.6.1 (audit fixes for the optional Cluster tab, hidden by default) - builds, tests pass (app + sandbox), lint clean. Desktop sandbox verified by screenshots at full / half / strip. **Never run on a real truck/head unit yet. Cluster: Unverified on real dongle** (only the simulated ELM327 in the sandbox has been exercised).
 
 ## Done
 - **v0.6.1** (audit fixes, Cluster tab; versionCode 601):
@@ -91,3 +91,8 @@ _Update this file at the end of every session. Newest entry on top of "Log"._
 - **2026-11-16 (v0.3.0)** - Metric conversion. Fable code review done and top findings fixed (v0.3.1).
 - **2026-11-15 (v0.2.0)** - Pushed v0.1.0 to GitHub (`willfox882/truck-dash`). Built the sandbox; Maven Central occasionally 429s (just retry). Skiko GL falls back to software under Xvfb (harmless).
 - **2026-11-15** - v0.1.0 scaffold. Sandbox needed `dl.google.com` + `maven.google.com` allowed; Android SDK 35 installed in `/home/user/android-sdk`. GitHub token in the sandbox was invalid → repo not yet pushed.
+
+## v0.6.2 (first truck feedback)
+- G-force read 0.00 all drive: the unit's IMU is absent or silent. `DriveEngine` now treats the IMU as dead after 3 s of all-zero samples and drives g from GPS (`core/GpsG.kt`: long = speed change, lat = speed x heading rate, ~1.2 s smoothing, 1 Hz). A live IMU takes over again. GPS g is coarse (about 1 Hz); not verified on the truck yet.
+- Grade: showed +4% downhill and -3% parked on flat. Causes: the old value was held after stopping, and GPS altitude (about 11 m accuracy) over a 120 m window is noisy. Now: 250 m window, slower altitude smoothing, output smoothing over about 100 m, clamp 20%, and grade shows "--" below 10 km/h. Still GPS-based, so expect roughly 1 to 2 percent noise; a barometer would be the real fix.
+- Tests: `GpsGTests`.
